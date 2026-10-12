@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="xFirW – Condizioni d'uso" Width="560" SizeToContent="Height" ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen" Background="White"
-        FontFamily="Segoe UI" Foreground="#172C46">
+        Icon="Assets/xFirW.ico" FontFamily="Segoe UI" Foreground="#172C46">
   <StackPanel Margin="30">
     <TextBlock Text="Esclusione di responsabilità" FontSize="24" FontWeight="SemiBold" />
     <TextBlock Text="Leggere e accettare prima di utilizzare il programma." Foreground="#68798E" FontSize="13" Margin="0,4,0,0" />

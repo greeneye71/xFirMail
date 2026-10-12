@@ -21,7 +21,7 @@
     <Application Id="App" Executable="xFirW.exe" uap10:RuntimeBehavior="packagedClassicApp" uap10:TrustLevel="mediumIL">
       <uap:VisualElements DisplayName="xFirW" Description="Visualizzatore di formulari digitali XFIR"
                           Square150x150Logo="Assets\Square150x150Logo.png"
-                          Square44x44Logo="Assets\Square44x44Logo.png" BackgroundColor="#163C4A" />
+                          Square44x44Logo="Assets\Square44x44Logo.png" BackgroundColor="#132A47" />
       <Extensions>
         <!-- The path of the opened file arrives as the first command-line argument. -->
         <uap:Extension Category="windows.fileTypeAssociation">

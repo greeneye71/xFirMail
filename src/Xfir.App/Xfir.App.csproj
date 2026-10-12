@@ -4,9 +4,11 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>xFirW</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets/xFirW.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Xfir.Rendering/Xfir.Rendering.csproj" />
+    <Resource Include="Assets/xFirW.ico" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3537.50" />
     <Content Include="../../LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../LICENSE-IT.txt" Link="LICENSE-IT.txt" CopyToOutputDirectory="PreserveNewest" />
