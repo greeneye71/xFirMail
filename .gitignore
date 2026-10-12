@@ -12,6 +12,8 @@ output/
 # Local analysis and real-world documents: never publish as test fixtures
 /ANALISI-E-PROPOSTA.md
 *.xfir
+# Synthetic sample with placeholder data only
+!/esempio-sintetico.xfir
 *.pdf
 tmp/
 .tools/
