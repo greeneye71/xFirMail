@@ -5,13 +5,19 @@ param(
     [string]$Publisher,
     [string]$PublisherDisplayName,
     [string]$DisplayName = 'xFirW',
-    [string]$PackageVersion = '1.0.0.0',
+    [string]$PackageVersion,
     [switch]$Development
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $repo = Split-Path $PSScriptRoot -Parent
+
+# Use the same version as the application unless an explicit package version is requested.
+if ([string]::IsNullOrWhiteSpace($PackageVersion)) {
+    [xml]$buildProps = Get-Content -LiteralPath (Join-Path $repo 'Directory.Build.props') -Raw
+    $PackageVersion = $buildProps.Project.PropertyGroup.Version + '.0'
+}
 
 if ($Development) {
     $IdentityName = 'xFirW.Development'
@@ -28,7 +34,7 @@ if ($IdentityName -notmatch '^[A-Za-z0-9.-]{3,50}$' -or $Publisher -notmatch '^C
 $parsedVersion = $null
 if ($PackageVersion -notmatch '^\d+\.\d+\.\d+\.0$' -or
     -not [Version]::TryParse($PackageVersion, [ref]$parsedVersion)) {
-    throw 'PackageVersion must contain four numbers and end in .0 (for example 1.0.0.0).'
+    throw 'PackageVersion must contain four numbers and end in .0 (for example 1.0.1.0).'
 }
 if ($parsedVersion.Major -lt 1 -or $parsedVersion.Major -gt 65535 -or
     $parsedVersion.Minor -gt 65535 -or $parsedVersion.Build -gt 65535) {
@@ -53,12 +59,18 @@ New-Item -ItemType Directory -Path $layout -Force | Out-Null
 Push-Location $repo
 try {
     & $dotnet publish src/Xfir.App/Xfir.App.csproj -c Release -r win-x64 --self-contained true `
+        "-p:Version=$($parsedVersion.ToString(3))" "-p:AssemblyVersion=$PackageVersion" "-p:FileVersion=$PackageVersion" `
         -p:RestoreLockedMode=true -p:PublishSingleFile=false -p:PublishTrimmed=false `
         -p:DebugType=None -p:DebugSymbols=false -o $layout
     if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed.' }
 } finally { Pop-Location }
 foreach ($required in @('xFirW.exe', 'coreclr.dll', 'hostfxr.dll', 'PresentationFramework.dll', 'LICENSE', 'LICENSE-IT.txt', 'THIRD-PARTY-NOTICES.md')) {
     if (-not (Test-Path -LiteralPath (Join-Path $layout $required))) { throw "Missing package component: $required" }
+}
+$binaryVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $layout 'xFirW.dll'))
+if ($binaryVersion.FileVersion -ne $PackageVersion -or
+    ($binaryVersion.ProductVersion -split '\+')[0] -ne $parsedVersion.ToString(3)) {
+    throw 'Application and package versions do not match.'
 }
 # User documents (real formulari, exported copies) must never be shipped inside the package.
 $documents = Get-ChildItem -LiteralPath $layout -Recurse -File | Where-Object { $_.Extension -in '.xfir', '.pdf' }

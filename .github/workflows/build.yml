@@ -16,7 +16,8 @@ jobs:
       - name: Refuse real documents in the repository
         shell: pwsh
         run: |
-          $found = git ls-files -- '*.xfir' '*.XFIR' '*.pdf' '*.PDF'
+          # The reviewed synthetic example is the only document allowed in source control.
+          $found = git ls-files -- '*.xfir' '*.XFIR' '*.pdf' '*.PDF' ':(exclude)esempio-sintetico.xfir'
           if ($found) { throw "Real documents must not be committed: $found" }
       - uses: actions/setup-dotnet@v4
         with:

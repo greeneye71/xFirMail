@@ -2,6 +2,8 @@
 
 Visualizzatore di formulari digitali XFIR per Windows, con anteprima, esportazione PDF e stampa.
 
+Versione corrente: **1.0.1** (pacchetto Microsoft Store **1.0.1.0**). Le modifiche dalla prima release Store sono riportate nel [changelog](CHANGELOG.md).
+
 xFirW è un'applicazione C# / .NET 10 e WPF. Legge un XFIR locale, genera un PDF A4 e lo mostra nell'applicazione, con comandi per esportazione e stampa. Non è un validatore completo RENTRI.
 
 Le funzioni implementate sono:
@@ -13,7 +15,7 @@ Le funzioni implementate sono:
 - Riepilogo del formulario, tabella dei dati originali, informazioni sulle firme ed elenco degli allegati.
 - Controlli di struttura con indicazione esplicita dei limiti di validazione.
 
-Lo stack è C# con .NET 10 LTS e WPF, PDFsharp per il PDF, QRCoder per il QR e WebView2 per l'anteprima. Il packaging MSIX, l'associazione `.xfir` e la pubblicazione nel Microsoft Store sono passi successivi.
+Lo stack è C# con .NET 10 LTS e WPF, PDFsharp per il PDF, QRCoder per il QR e WebView2 per l'anteprima. Il pacchetto MSIX include l'associazione `.xfir`; la versione 1.0.0 è stata inviata al Microsoft Store e la 1.0.1 prepara il relativo aggiornamento.
 
 ## Avvio e compilazione
 

@@ -30,7 +30,14 @@ public partial class MainWindow : Window
         InitializeComponent();
         AuthorLabel.Text = $"{AppInfo.Author} · xFirW {AppInfo.Version}";
         this.initialFile = initialFile;
+        WindowState = WindowState.Maximized;
     }
+    private void OnSourceInitialized(object? sender, EventArgs e)
+    {
+        // Fit restore bounds and minimum sizes before Windows maximizes the window.
+        WindowPlacement.FitToWorkArea(this);
+    }
+
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         if (!string.IsNullOrWhiteSpace(initialFile)) await OpenFile(initialFile);

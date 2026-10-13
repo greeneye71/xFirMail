@@ -6,7 +6,7 @@
          IgnorableNamespaces="uap uap10 rescap">
   <!-- The build script requires the real Partner Center identity, or explicit -Development. -->
   <Identity Name="REPLACE_FROM_PARTNER_CENTER" Publisher="CN=REPLACE_FROM_PARTNER_CENTER"
-            Version="1.0.0.0" ProcessorArchitecture="x64" />
+            Version="1.0.1.0" ProcessorArchitecture="x64" />
   <Properties>
     <DisplayName>xFirW</DisplayName>
     <PublisherDisplayName>REPLACE_FROM_PARTNER_CENTER</PublisherDisplayName>
