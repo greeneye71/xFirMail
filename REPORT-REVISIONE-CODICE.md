@@ -1,6 +1,6 @@
 # Revisione del codice xFirW - correzioni e verifiche
 
-Data: 20 ottobre 2026. Stato: **blocchi A, B e C approvati e corretti (R01-R11)**. Verifiche automatiche completate; rimane distinto il collaudo manuale su monitor fisici. Nessuna nuova build di distribuzione generata.
+Data: 20 ottobre 2026. Stato: **blocchi A, B e C approvati e corretti (R01-R11)**. Verifiche automatiche completate; rimane distinto il collaudo manuale su monitor fisici. **Nuovo pacchetto Store 1.0.2.0 generato su successiva richiesta dell'utente**, non inviato a Partner Center.
 
 La diagnosi iniziale riguardava il working tree basato sul commit `5dc7d6a`, incluse le modifiche locali della versione 1.0.2. Il blocco A è stato corretto nel commit `c75bacd`; i blocchi B e C sono stati autorizzati con la successiva richiesta di procedere analogamente. Sono stati esaminati lettore XFIR, modello, generatore PDF, applicazione WPF, CLI, test, script di packaging e workflow GitHub Actions. Non sono stati utilizzati formulari reali.
 
@@ -76,7 +76,15 @@ Il confronto degli otto PDF sintetici mantiene i testi estratti, normalizzata la
 
 Ripristino finale dell'intera soluzione con `--locked-mode -p:SecurityAuditRequired=true` superato. Audit successivo di tutti e sei i progetti, incluse le dipendenze transitive: nessun pacchetto vulnerabile segnalato dalla fonte `https://data.nuget.org/v3/index.json` al momento della verifica. Questo esito è distinto dalla simulazione della fonte indisponibile.
 
-**Nessuna nuova build dell'eseguibile applicativo, nessun `publish`, nessun MSIX, nessun invio allo Store.** Il commit usa `[skip ci]` per evitare la build automatica del workflow. La generazione della build di distribuzione rimane in attesa di una richiesta dell'utente, anche dopo queste correzioni. I vecchi pacchetti locali non sono aggiornati.
+**Durante la fase di correzione non sono stati generati eseguibili applicativi, publish o MSIX.** Il commit `6c407ca` usa `[skip ci]` per evitare la build automatica del workflow. La successiva richiesta dell'utente ha autorizzato la build descritta di seguito; i pacchetti precedenti non contengono queste correzioni.
+
+### Build Store successivamente autorizzata
+
+Il nuovo pacchetto **1.0.2.0 x64** include tutte le correzioni R01-R11 del commit `6c407ca` e il runtime .NET **10.0.13**. Lo script di packaging usa l'identità Store già presente nelle build precedenti e una cartella nuova per evitare binari residui. La copia finale è `artifacts/store-upload/xFirW-1.0.2.0-x64-store.msix`; il file affiancato `.build-info.json` registra hash, commit del codice e risultati. La vecchia copia con lo stesso nome è conservata nella sottocartella `previous/`.
+
+Verifiche completate: ripristino con lock file e audit obbligatorio, 102 test superati, publish self-contained, controllo delle DLL di runtime, validazione MakeAppx, integrità del contenuto MSIX e corrispondenza dei file con il layout di pubblicazione. Verificate anche versione **1.0.2.0** nel manifest Win32 dell'eseguibile effettivo e **1.0.2** nei PDF prodotti. Le prove CLI dell'eseguibile incluso coprono conversione, percorsi con spazi, mancata sovrascrittura, file assente, help e opzioni errate.
+
+Il pacchetto è privo di firma locale, destinato alla firma del Microsoft Store. **Non è stato caricato in Partner Center.** Non sono stati eseguiti Windows App Certification Kit, installazione su macchina pulita o collaudo manuale su monitor fisici; le verifiche automatiche non sostituiscono la certificazione Store.
 
 ## Correzioni di sicurezza già completate
 
@@ -104,7 +112,7 @@ Risultati verificati:
 | Eseguibile del nuovo pacchetto, conversione senza finestre | Superata |
 | Creazione e validazione MSIX con MakeAppx | Superate |
 
-Nella precedente fase di sicurezza era stato generato `artifacts/store-upload/xFirW-1.0.2.0-x64-store.msix`, con runtime 10.0.13, e aggiornata la cartella `artifacts/xFirW-1.0.2`. **Non sono stati inviati allo Store e non includono le successive correzioni dei blocchi A, B e C.** La distribuzione rimane rinviata in attesa della richiesta di generare la nuova build.
+Nella precedente fase di sicurezza era stato generato `artifacts/store-upload/xFirW-1.0.2.0-x64-store.msix`, con runtime 10.0.13, e aggiornata la cartella `artifacts/xFirW-1.0.2`. **Questi vecchi output non sono stati inviati allo Store e non includono le successive correzioni dei blocchi A, B e C.** Il file Store è ora sostituito dalla build successivamente autorizzata, con la vecchia copia conservata in `previous/`; la cartella `artifacts/xFirW-1.0.2` rimane un output precedente.
 
 Fonti Microsoft: [CVE-2026-70162](https://github.com/dotnet/runtime/security/advisories/GHSA-2fmv-rv2c-59x7), [CVE-2026-84008](https://github.com/dotnet/runtime/security/advisories/GHSA-846f-f764-76mx).
 
@@ -260,7 +268,7 @@ La mancata validazione XSD e la mancata verifica crittografica completa delle fi
 | B - Robustezza | R05, R06, R07, R08 | Definire i limiti, proteggere i salvataggi e completare i collaudi CLI/UI |
 | C - Manutenzione | R09, R10, R11 | Ottimizzazioni misurate, versione unica e audit di rilascio più rigoroso |
 
-**Stato:** tutti e tre i blocchi sono implementati e verificati automaticamente. Prima della distribuzione resta il collaudo manuale indicato per R08. La build di distribuzione resta sospesa in attesa della richiesta dell'utente.
+**Stato:** tutti e tre i blocchi sono implementati e verificati automaticamente. La build Store è stata generata dopo l'autorizzazione successiva. Prima della distribuzione resta il collaudo manuale indicato per R08.
 
 Decisioni dell'utente:
 
@@ -269,4 +277,4 @@ Decisioni dell'utente:
 - [x] Approvo il blocco C (richiesta di procedere analogamente).
 - [ ] Richiedo una revisione del report prima di autorizzare gli interventi.
 
-L'invio su GitHub delle correzioni testate è autorizzato dalla richiesta di procedere come per il blocco A. Non sono autorizzati automaticamente generazione della nuova build o invio allo Store.
+L'invio su GitHub delle correzioni testate è autorizzato dalla richiesta di procedere come per il blocco A. La nuova build è stata poi richiesta esplicitamente. L'invio allo Store rimane un'azione separata, non eseguita.

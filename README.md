@@ -84,7 +84,7 @@ I test compilano i componenti necessari, inclusi i sorgenti WPF modificati e un 
 
 Le prove dei dialoghi coprono automaticamente le aree equivalenti a 1366×768 e 1920×1080 alle scale 100%, 150% e 200%, lo scorrimento e i comandi di accettazione. Rimane distinto il collaudo manuale su monitor fisici. Per ripetere la misura delle prestazioni isolata, imposta `XFIR_BENCHMARK_OUTPUT` a un percorso JSON e usa il filtro `--filter FullyQualifiedName~ProcessingBenchmarkTests`; i risultati misurano tempo e byte allocati, non il picco di memoria.
 
-Lo stato delle correzioni e delle verifiche è nel [report di revisione](REPORT-REVISIONE-CODICE.md). La distribuzione della 1.0.2 resta sospesa fino alla richiesta di generare la nuova build; i pacchetti locali precedenti non includono tutte le correzioni del report.
+Lo stato delle correzioni e delle verifiche è nel [report di revisione](REPORT-REVISIONE-CODICE.md). Su richiesta dell'utente è stato generato il nuovo pacchetto Store **1.0.2.0 x64**, con runtime incluso e tutte le correzioni R01-R11. Il file locale per il caricamento è `artifacts/store-upload/xFirW-1.0.2.0-x64-store.msix`; hash e dettagli sono nel file `xFirW-1.0.2.0-x64-store.build-info.json` nella stessa cartella. Il pacchetto non è stato caricato in Partner Center. Le precedenti build non includono tutte le correzioni.
 
 ## Elaborazione e salvataggi
 
