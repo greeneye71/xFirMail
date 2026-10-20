@@ -1,12 +1,12 @@
-# Revisione del codice xFirW - proposta da approvare
+# Revisione del codice xFirW - correzioni e verifiche
 
-Data: 20 ottobre 2026. Stato: **blocco A (R01-R04) approvato, corretto e verificato; blocchi B e C in attesa di approvazione**.
+Data: 20 ottobre 2026. Stato: **blocchi A, B e C approvati e corretti (R01-R11)**. Verifiche automatiche completate; rimane distinto il collaudo manuale su monitor fisici. Nessuna nuova build di distribuzione generata.
 
-La revisione riguarda il working tree basato sul commit `5dc7d6a`, incluse le modifiche locali della versione 1.0.2. Sono stati esaminati lettore XFIR, modello, generatore PDF, applicazione WPF, CLI, test, script di packaging e workflow GitHub Actions. Non sono stati utilizzati formulari reali.
+La diagnosi iniziale riguardava il working tree basato sul commit `5dc7d6a`, incluse le modifiche locali della versione 1.0.2. Il blocco A è stato corretto nel commit `c75bacd`; i blocchi B e C sono stati autorizzati con la successiva richiesta di procedere analogamente. Sono stati esaminati lettore XFIR, modello, generatore PDF, applicazione WPF, CLI, test, script di packaging e workflow GitHub Actions. Non sono stati utilizzati formulari reali.
 
-## Esito e decisione richiesta
+## Esito
 
-Sono stati individuati **11 rilievi**: 3 a priorità alta, 5 media e 3 bassa. **Quattro rilievi sono ora risolti (R01-R04); sette restano aperti (R05-R11).** I principali problemi riguardavano la fedeltà del PDF ai dati originali. Non sono emerse nuove vulnerabilità con esecuzione di codice o sottrazione di dati dimostrate.
+Sono stati individuati **11 rilievi**: 3 a priorità alta, 5 media e 3 bassa. **Tutti gli interventi R01-R11 sono ora implementati**, con 102 test automatici superati e ulteriori verifiche di audit e versione. I principali problemi riguardavano la fedeltà del PDF ai dati originali. Non sono emerse nuove vulnerabilità con esecuzione di codice o sottrazione di dati dimostrate.
 
 Le priorità indicano l'ordine di intervento nel progetto, non punteggi CVSS:
 
@@ -28,7 +28,7 @@ Le priorità indicano l'ordine di intervento nel progetto, non punteggi CVSS:
 | R10 | P3 | Versione Win32 ancora fissata a 1.0.1.0 | Verificata nel manifest |
 | R11 | P3 | L'indisponibilità dell'audit NuGet non blocca il rilascio | Verificata la configurazione; indisponibilità non simulata |
 
-I rilievi dettagliati sotto descrivono la diagnosi iniziale; R01-R04 sono stati successivamente approvati e corretti. R05-R11 restano proposte da approvare. Le correzioni delle due CVE, autorizzate prima di questo report, sono state completate separatamente.
+La tabella e i rilievi dettagliati sotto conservano la diagnosi iniziale e le evidenze disponibili allora; lo stato attuale e le prove successive sono nelle sezioni di esito delle correzioni. Le correzioni delle due CVE, autorizzate prima di questo report, sono state completate separatamente. I riferimenti di riga della diagnosi iniziale sono storici.
 
 ## Esito delle correzioni approvate del blocco A
 
@@ -40,6 +40,43 @@ I rilievi dettagliati sotto descrivono la diagnosi iniziale; R01-R04 sono stati 
 Verifica: **68 test superati, 0 falliti**, di cui 24 nuovi casi di regressione in `tests/Xfir.Tests/BlockARegressionTests.cs`. Controllati anche i PDF temporanei dei test, con lettura dei contenuti e verifica visiva di modulo e appendici.
 
 Su richiesta dell'utente, per questa fase sono stati compilati soltanto i componenti necessari ai test: **nessuna compilazione dell'applicazione WPF, nessun publish, nessun nuovo MSIX o pacchetto di distribuzione**. Il commit di invio usa `[skip ci]` per evitare la build automatica su GitHub. I pacchetti locali della precedente fase di sicurezza non includono queste correzioni e non sono stati aggiornati.
+
+## Esito delle correzioni approvate dei blocchi B e C
+
+| ID | Correzione | Verifica |
+| --- | --- | --- |
+| R05 | Un budget condiviso tra lettura, preparazione e rendering controlla profondità prima della materializzazione XML, nodi, campi, pagine e durata. Preparazione sul worker; pulsante Annulla e token da console. | `ProcessingLimitsTests`: soglie, annullamento, scadenza, conservazione dei dati originali e rifiuto di un PDF eccessivo senza file parziale. |
+| R06 | `AtomicFileWriter` scrive un temporaneo esclusivo nella stessa cartella, completa il flush e rinomina/sostituisce. Nessun ripiego sulla scrittura distruttiva della destinazione. | `AtomicFileWriterTests`: errore durante la scrittura, destinazione precedente, creazione concorrente, annullamento, file bloccato, temporaneo estraneo e sostituzione riuscita. |
+| R07 | Instradamento esplicito degli argomenti: opzioni errate o argomenti in eccesso terminano con codice 2; zero argomenti o un percorso mantengono l'avvio grafico. | `StartupProcessTests`: processo ausiliario che esegue i veri sorgenti di avvio, con timeout; errori e help senza richiesta GUI, conversione effettiva con spazi nei percorsi. |
+| R08 | Dialoghi ridimensionabili con contenuto scorrevole, comandi separati dal testo e vincoli aggiornati su posizione/DPI. | `DialogLayoutTests`: nove casi, comprese sei combinazioni di dimensioni/scala, testo lungo, cambio di area e proprietà dei comandi di accettazione. Verifica visiva delle immagini a 1366×768 / 200%. |
+| R09 | Campi preparati una volta per l'interfaccia, cache limitata alla singola operazione, QR generato una sola volta e wrapping interrotto quando il riquadro è pieno. Nessuna cache globale dei documenti. | Benchmark isolato prima/dopo; cache verificata con operazioni distinte; otto PDF confrontati con quelli del blocco A, con stessi contenuti e numero di pagine. |
+| R10 | Target MSBuild condiviso genera il manifest da `AssemblyVersion`, derivato dalla versione centrale; nessuna versione manuale nel modello. | `ManifestTests` legge la risorsa Win32 incorporata nell'eseguibile di prova, anche con versione alternativa 7.8.9. Lo script genera il manifest dell'applicazione con 1.0.2 e 7.8.9 senza compilarla. |
+| R11 | Fonte audit esplicita; `NU1900` e `NU1905` bloccanti con `SecurityAuditRequired=true`, imposto da CI e packaging. | `Test-SecurityAudit.ps1`: fonte loopback irraggiungibile, ripristino locale con avviso e codice 0, ripristino di rilascio respinto con codice 1. Nessun packaging eseguito. |
+
+I limiti predefiniti sono: profondità XML fino al livello 64 (radice a livello 0), 100.000 nodi/eventi XML e attributi complessivi, 20.000 campi materializzati, 100 pagine e 30 secondi di elaborazione. Restano i limiti precedenti di dimensione e decompressione. I controlli temporali e di annullamento sono cooperativi; non terminano forzatamente le chiamate di sistema o delle librerie. Una soglia superata produce un errore e non salva una copia incompleta. Le soglie possono rifiutare anche documenti legittimi molto grandi; sono riportate nel README.
+
+Per R08 sono stati verificati automaticamente layout WPF e stili effettivi dell'applicazione nelle aree equivalenti a 1366×768 e 1920×1080, ciascuna al 100%, 150% e 200%, riservando spazio alla barra delle applicazioni. La prova del cambio monitor usa aree logiche, incluse coordinate negative. **Non equivale a un collaudo manuale su monitor fisici**, né dimostra il comportamento di ogni tema/accessibilità: il controllo hardware rimane una verifica da eseguire prima della distribuzione. Le proprietà di tastiera sono verificate; non è stata simulata una sessione completa di input utente.
+
+### Prestazioni misurate (R09)
+
+Stesso PC e SDK, configurazione Release, due esecuzioni di riscaldamento e mediana di sette misure; benchmark eseguito isolatamente dai restanti test. Ogni misura comprende lettura, preparazione delle righe e rendering, con un nuovo lettore/renderer. Il documento lungo contiene 3.500 ripetizioni di un'annotazione sintetica.
+
+| Caso | Tempo prima | Tempo dopo | Byte allocati prima | Byte allocati dopo |
+| --- | --- | --- | --- | --- |
+| Sintetico normale | 7,23 ms | 7,02 ms | 2.705.800 | 2.710.632 |
+| Annotazioni lunghe | 79,48 ms | 53,43 ms | 72.338.760 | 41.533.512 |
+
+Sul caso lungo: circa **−33% di tempo e −43% di allocazioni**. Il caso normale rimane sostanzialmente invariato, con un lieve incremento delle allocazioni dovuto ai controlli e alle strutture di elaborazione. Si misurano byte allocati sul thread, **non il picco di RAM**; i tempi non sono una garanzia su altri PC. Dati locali: `tmp/benchmark-before.json` e `tmp/benchmark-after.json`, esclusi dal versionamento. Il test facoltativo è ripetibile impostando `XFIR_BENCHMARK_OUTPUT` come descritto nel README.
+
+### Verifiche complessive e distribuzione
+
+La suite corrente comprende **102 casi superati, 0 falliti**, inclusi i 34 aggiunti dopo il blocco A. La misura delle prestazioni è facoltativa nella suite ed è stata attivata anche separatamente. Sono stati compilati soltanto Core, Rendering e i progetti di test: i sorgenti WPF modificati sono collegati al progetto di test per verificarne la compilazione. L'eseguibile ausiliario serve esclusivamente a verificare avvio e risorsa manifest; non viene distribuito.
+
+Il confronto degli otto PDF sintetici mantiene i testi estratti, normalizzata la data di generazione, e il numero di pagine. Controllate visivamente anche pagina principale e appendice ADR. Le immagini dei dialoghi e i PDF sono temporanei sotto `tmp/`, esclusi dal commit. README, changelog e questo report documentano comportamenti, soglie e limiti delle verifiche.
+
+Ripristino finale dell'intera soluzione con `--locked-mode -p:SecurityAuditRequired=true` superato. Audit successivo di tutti e sei i progetti, incluse le dipendenze transitive: nessun pacchetto vulnerabile segnalato dalla fonte `https://data.nuget.org/v3/index.json` al momento della verifica. Questo esito è distinto dalla simulazione della fonte indisponibile.
+
+**Nessuna nuova build dell'eseguibile applicativo, nessun `publish`, nessun MSIX, nessun invio allo Store.** Il commit usa `[skip ci]` per evitare la build automatica del workflow. La generazione della build di distribuzione rimane in attesa di una richiesta dell'utente, anche dopo queste correzioni. I vecchi pacchetti locali non sono aggiornati.
 
 ## Correzioni di sicurezza già completate
 
@@ -67,7 +104,7 @@ Risultati verificati:
 | Eseguibile del nuovo pacchetto, conversione senza finestre | Superata |
 | Creazione e validazione MSIX con MakeAppx | Superate |
 
-Nella precedente fase di sicurezza era stato generato `artifacts/store-upload/xFirW-1.0.2.0-x64-store.msix`, con runtime 10.0.13, e aggiornata la cartella `artifacts/xFirW-1.0.2`. **Non sono stati inviati allo Store e non includono le successive correzioni del blocco A.** La distribuzione rimane rinviata fino alla risoluzione degli altri problemi.
+Nella precedente fase di sicurezza era stato generato `artifacts/store-upload/xFirW-1.0.2.0-x64-store.msix`, con runtime 10.0.13, e aggiornata la cartella `artifacts/xFirW-1.0.2`. **Non sono stati inviati allo Store e non includono le successive correzioni dei blocchi A, B e C.** La distribuzione rimane rinviata in attesa della richiesta di generare la nuova build.
 
 Fonti Microsoft: [CVE-2026-70162](https://github.com/dotnet/runtime/security/advisories/GHSA-2fmv-rv2c-59x7), [CVE-2026-84008](https://github.com/dotnet/runtime/security/advisories/GHSA-846f-f764-76mx).
 
@@ -207,7 +244,7 @@ Le sei anomalie funzionali di R01-R04 sono state riprodotte modificando soltanto
 
 I materiali locali delle prove sono in `tmp/audit-code-2026-10-20/risultati.json` e `tmp/audit_repro.py`; sono temporanei, esclusi dal versionamento e non sono test di regressione già aggiunti alla suite. I tempi sono indicativi di questo PC, non benchmark confrontabili tra macchine.
 
-La suite iniziale di 44 test copriva percorsi ZIP pericolosi, nomi duplicati, DTD/entità esterne, numero FIR incoerente, eventi aggiuntivi, note lunghe, CLI e versione PDF. I 24 casi aggiunti per il blocco A coprono ora anche le anomalie R01-R04, unità e quantità duplicate, namespace estranei, testo misto, riferimenti vuoti e documenti preliminari. Ogni ulteriore correzione proposta deve includere il corrispondente test di regressione.
+La suite iniziale di 44 test copriva percorsi ZIP pericolosi, nomi duplicati, DTD/entità esterne, numero FIR incoerente, eventi aggiuntivi, note lunghe, CLI e versione PDF. I 24 casi aggiunti per il blocco A coprono ora anche le anomalie R01-R04, unità e quantità duplicate, namespace estranei, testo misto, riferimenti vuoti e documenti preliminari. Le successive correzioni dei blocchi B e C hanno aggiunto altri 34 casi, descritti nella sezione di esito.
 
 Sono stati verificati nel codice anche controlli già presenti: niente estrazione automatica dei percorsi ZIP sul filesystem; limiti di decompressione; DTD vietati e resolver XML disabilitato; nessuna esecuzione automatica degli allegati; protezione dalla sovrascrittura nella CLI; restrizioni di navigazione e risorse HTTP/HTTPS nell'anteprima.
 
@@ -215,7 +252,7 @@ Non sono stati eseguiti un penetration test completo, fuzzing esteso, prove dist
 
 La mancata validazione XSD e la mancata verifica crittografica completa delle firme sono limiti già dichiarati del prodotto: non sono state trasformate in richieste implicite di nuove funzionalità. Il report distingue questi limiti dai problemi di rappresentazione dei dati dimostrati sopra.
 
-## Piano proposto per l'approvazione
+## Piano approvato e stato finale
 
 | Blocco | Contenuto | Obiettivo |
 | --- | --- | --- |
@@ -223,13 +260,13 @@ La mancata validazione XSD e la mancata verifica crittografica completa delle fi
 | B - Robustezza | R05, R06, R07, R08 | Definire i limiti, proteggere i salvataggi e completare i collaudi CLI/UI |
 | C - Manutenzione | R09, R10, R11 | Ottimizzazioni misurate, versione unica e audit di rilascio più rigoroso |
 
-**Stato:** il blocco A è completato. Il prossimo gruppo da valutare è il blocco B; il blocco C comprende interventi di manutenzione e ottimizzazioni da misurare. Per istruzione dell'utente la build di distribuzione resta sospesa fino alla risoluzione di tutti i problemi.
+**Stato:** tutti e tre i blocchi sono implementati e verificati automaticamente. Prima della distribuzione resta il collaudo manuale indicato per R08. La build di distribuzione resta sospesa in attesa della richiesta dell'utente.
 
-Decisione dell'utente, da compilare dopo la lettura:
+Decisioni dell'utente:
 
 - [x] Approvo il blocco A (correzioni e test completati).
-- [ ] Approvo il blocco B.
-- [ ] Approvo il blocco C.
+- [x] Approvo il blocco B (richiesta di procedere analogamente).
+- [x] Approvo il blocco C (richiesta di procedere analogamente).
 - [ ] Richiedo una revisione del report prima di autorizzare gli interventi.
 
-L'approvazione può anche indicare singoli ID. Non autorizza automaticamente invio allo Store, pubblicazione o push del repository.
+L'invio su GitHub delle correzioni testate è autorizzato dalla richiesta di procedere come per il blocco A. Non sono autorizzati automaticamente generazione della nuova build o invio allo Store.

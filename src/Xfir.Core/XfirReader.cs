@@ -19,23 +19,34 @@ public sealed class XfirReader
     private const int MaxTotalBytes = 32 * 1024 * 1024;
     private static readonly XNamespace Ds = "http://www.w3.org/2000/09/xmldsig#";
 
-    public FormDocument Read(string path)
+    public FormDocument Read(string path, ProcessingBudget? budget = null)
     {
+        budget ??= new();
+        budget.Check();
         using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         if (file.Length > MaxArchiveBytes) throw new XfirReadException("Il file supera il limite di lettura di 16 MB.");
         using var data = new MemoryStream();
-        file.CopyTo(data);
-        return Read(data.ToArray(), Path.GetFileName(path));
+        var buffer = new byte[8192];
+        int count;
+        while ((count = file.Read(buffer)) > 0)
+        {
+            budget.Check();
+            if (data.Length + count > MaxArchiveBytes) throw new XfirReadException("Il file supera il limite di lettura di 16 MB.");
+            data.Write(buffer, 0, count);
+        }
+        return Read(data.ToArray(), Path.GetFileName(path), budget);
     }
 
-    public FormDocument Read(byte[] source, string sourceName = "documento.xfir")
+    public FormDocument Read(byte[] source, string sourceName = "documento.xfir", ProcessingBudget? budget = null)
     {
-        try { return ReadArchive(source, sourceName); }
+        budget ??= new();
+        budget.Check();
+        try { return ReadArchive(source, sourceName, budget); }
         catch (Exception e) when (e is InvalidDataException or XmlException or FormatException or OverflowException)
         { throw new XfirReadException("Il contenitore XFIR non è leggibile: " + e.Message); }
     }
 
-    private static FormDocument ReadArchive(byte[] source, string sourceName)
+    private static FormDocument ReadArchive(byte[] source, string sourceName, ProcessingBudget budget)
     {
         if (source.Length > MaxArchiveBytes) throw new XfirReadException("Il file supera il limite di lettura di 16 MB.");
         using var stream = new MemoryStream(source, writable: false);
@@ -46,6 +57,7 @@ public sealed class XfirReader
         long total = 0;
         foreach (var entry in archive.Entries)
         {
+            budget.Check();
             var name = entry.FullName;
             CheckPath(name.TrimEnd('/'));
             if (!names.Add(name.TrimEnd('/'))) throw new XfirReadException("Elemento duplicato o ambiguo: " + name);
@@ -58,6 +70,7 @@ public sealed class XfirReader
             int count;
             while ((count = input.Read(buffer)) > 0)
             {
+                budget.Check();
                 if (output.Length + count > MaxEntryBytes || output.Length + count > entry.Length)
                     throw new XfirReadException("Dimensione decompressa non valida: " + name);
                 output.Write(buffer, 0, count);
@@ -70,7 +83,7 @@ public sealed class XfirReader
             throw new XfirReadException("Il manifest ASiC-E è assente.");
 
         var warnings = new List<string>();
-        var manifest = ParseXml(manifestBytes);
+        var manifest = ParseXml(manifestBytes, budget);
         XNamespace manifestNs = "urn:oasis:names:tc:opendocument:xmlns:manifest:1.0";
         if (manifest.Name != manifestNs + "manifest") throw new XfirReadException("Il manifest ASiC-E non è riconosciuto.");
         var declared = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -89,13 +102,15 @@ public sealed class XfirReader
         var signatures = new List<SignatureInfo>();
         foreach (var (name, bytes) in files.Where(f => f.Key.EndsWith(".xml", StringComparison.OrdinalIgnoreCase) && !f.Key.Equals("META-INF/manifest.xml", StringComparison.OrdinalIgnoreCase)))
         {
-            var root = ParseXml(bytes);
+            var root = ParseXml(bytes, budget);
             foreach (var signature in root.DescendantsAndSelf(Ds + "Signature"))
             {
+                budget.Check();
                 var references = signature.Element(Ds + "SignedInfo")?.Elements(Ds + "Reference").Select(r => r.Attribute("URI")?.Value ?? "").ToList() ?? [];
                 // URI="" signs the enclosing document and "#id" an element inside it: neither names a container file.
                 foreach (var reference in references.Where(r => r.Length > 0 && !r.StartsWith('#')))
                 {
+                    budget.Check();
                     var target = Uri.UnescapeDataString(reference);
                     CheckPath(target);
                     if (!files.ContainsKey(target)) warnings.Add("Riferimento di firma assente: " + target);
@@ -173,22 +188,27 @@ public sealed class XfirReader
         foreach (var unknown in files.Keys.Where(n => !n.EndsWith(".xml", StringComparison.OrdinalIgnoreCase) && !n.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) && n != "mimetype" && !n.Equals(cborName, StringComparison.OrdinalIgnoreCase)))
             warnings.Add("Elemento non rappresentato: " + unknown);
         if (attachments.Count > 0) warnings.Add("Sono presenti allegati PDF: elencati nei dettagli, non inclusi nella stampa del formulario.");
+        var originalFields = new List<DataField>();
+        foreach (var part in parts)
+            foreach (var field in budget.GetFields(part).Where(field => !field.Field.Contains("Signature", StringComparison.Ordinal)))
+                originalFields.Add(new DataField(part.Name + " · " + field.Field, field.Value));
+        budget.Check();
         return new FormDocument
         {
             SourceName = sourceName, SourceSha256 = Convert.ToHexString(SHA256.HashData(source)), Endorsement = endorsement,
             Departure = departure, Acceptance = acceptance, PrimaryCarrier = displayedCarrier, Transports = transports, Parts = parts,
+            OriginalFields = originalFields.AsReadOnly(),
             Signatures = signatures, Attachments = attachments, AdditionalParts = additional, SupplementaryFields = supplementary, QrPayload = qr, Warnings = warnings
         };
     }
 
-    private static XElement ParseXml(byte[] bytes)
+    private static XElement ParseXml(byte[] bytes, ProcessingBudget budget)
     {
         var settings = new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null, MaxCharactersInDocument = 4 * 1024 * 1024 };
         using var stream = new MemoryStream(bytes, false);
         using var reader = XmlReader.Create(stream, settings);
-        var root = XElement.Load(reader);
-        if (root.Descendants().Any(e => e.Ancestors().Take(65).Count() > 64)) throw new XfirReadException("XML con annidamento eccessivo.");
-        return root;
+        using var bounded = new BudgetXmlReader(reader, budget);
+        return XElement.Load(bounded);
     }
 
     private static void CheckPath(string name)

@@ -23,7 +23,12 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - name: Restore locked dependencies
-        run: dotnet restore xFirW.slnx --locked-mode
+        run: dotnet restore xFirW.slnx --locked-mode -p:SecurityAuditRequired=true
+      - name: Check audit failure policy and generated manifest
+        shell: pwsh
+        run: |
+          ./scripts/Test-SecurityAudit.ps1
+          ./scripts/Test-ManifestGeneration.ps1
       - name: Build
         run: dotnet build xFirW.slnx -c Release --no-restore -m:1
       - name: Test synthetic documents

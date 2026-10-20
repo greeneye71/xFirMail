@@ -1,10 +1,30 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><IsPackable>false</IsPackable><IsTestProject>true</IsTestProject></PropertyGroup>
+  <PropertyGroup><IsPackable>false</IsPackable><IsTestProject>true</IsTestProject><UseWPF>true</UseWPF></PropertyGroup>
   <ItemGroup>
     <Compile Include="../../src/Shared/ConversionCommand.cs" Link="ConversionCommand.cs" />
+    <Compile Include="../../src/Shared/AppArguments.cs" Link="AppArguments.cs" />
+    <Compile Include="../../src/Xfir.App/WindowPlacement.cs" Link="WindowPlacement.cs" />
+    <Compile Include="../../src/Xfir.App/AppInfo.cs" Link="AppInfo.cs" />
+    <Compile Include="../../src/Xfir.App/DocumentDetails.cs" Link="DocumentDetails.cs" />
+    <Compile Include="../../src/Xfir.App/PreviewStorage.cs" Link="PreviewStorage.cs" />
+    <Compile Include="../../src/Xfir.App/MainWindow.xaml.cs" Link="MainWindow.xaml.cs" />
+    <Compile Include="../../src/Xfir.App/AboutWindow.xaml.cs" Link="AboutWindow.xaml.cs" />
+    <Compile Include="../../src/Xfir.App/DisclaimerWindow.xaml.cs" Link="DisclaimerWindow.xaml.cs" />
+    <Page Include="../../src/Xfir.App/AboutWindow.xaml" Link="AboutWindow.xaml" />
+    <Page Include="../../src/Xfir.App/DisclaimerWindow.xaml" Link="DisclaimerWindow.xaml" />
+    <Page Include="../../src/Xfir.App/MainWindow.xaml" Link="MainWindow.xaml" />
+    <Resource Include="../../src/Xfir.App/Assets/xFirW.ico" Link="Assets/xFirW.ico" />
+    <EmbeddedResource Include="../../src/Xfir.App/App.xaml" LogicalName="Xfir.Tests.AppResources.xaml" />
+    <Using Include="System.IO" />
+    <ProjectReference Include="../Xfir.StartupProbe/Xfir.StartupProbe.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="../../src/Xfir.Rendering/Xfir.Rendering.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3537.50" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.1"><PrivateAssets>all</PrivateAssets></PackageReference>
   </ItemGroup>
+  <Target Name="CopyStartupProbe" AfterTargets="Build">
+    <ItemGroup><StartupProbeFiles Include="../Xfir.StartupProbe/bin/$(Configuration)/$(TargetFramework)/**/*" /></ItemGroup>
+    <Copy SourceFiles="@(StartupProbeFiles)" DestinationFiles="@(StartupProbeFiles->'$(OutDir)startup-probe/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

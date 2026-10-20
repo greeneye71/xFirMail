@@ -60,7 +60,7 @@ Push-Location $repo
 try {
     & $dotnet publish src/Xfir.App/Xfir.App.csproj -c Release -r win-x64 --self-contained true `
         "-p:Version=$($parsedVersion.ToString(3))" "-p:AssemblyVersion=$PackageVersion" "-p:FileVersion=$PackageVersion" `
-        -p:RestoreLockedMode=true -p:PublishSingleFile=false -p:PublishTrimmed=false `
+        -p:RestoreLockedMode=true -p:SecurityAuditRequired=true -p:PublishSingleFile=false -p:PublishTrimmed=false `
         -p:DebugType=None -p:DebugSymbols=false -o $layout
     if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed.' }
 } finally { Pop-Location }

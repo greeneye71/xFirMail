@@ -8,6 +8,7 @@ public partial class DisclaimerWindow : Window
     public DisclaimerWindow()
     {
         InitializeComponent();
+        WindowPlacement.ConstrainDialog(this);
         DisclaimerText.Text = AppInfo.Disclaimer;
     }
 

@@ -1,5 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
-  <ItemGroup><Compile Include="../Shared/ConversionCommand.cs" Link="ConversionCommand.cs" /></ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/ConversionCommand.cs" Link="ConversionCommand.cs" />
+    <Compile Include="../Shared/ConsoleCancellation.cs" Link="ConsoleCancellation.cs" />
+  </ItemGroup>
   <ItemGroup><ProjectReference Include="../Xfir.Rendering/Xfir.Rendering.csproj" /></ItemGroup>
 </Project>

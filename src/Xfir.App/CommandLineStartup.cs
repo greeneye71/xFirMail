@@ -10,15 +10,14 @@ internal static class CommandLineStartup
     public static bool TryRun(string[] args, out int exitCode)
     {
         exitCode = 0;
-        if (args.Length == 0 || args[0] is not ("--pdf" or "--help" or "-h")) return false;
+        if (AppArguments.OpensWindow(args)) return false;
 
         // WinExe has no console of its own. Reuse the caller's console when present;
         // redirected streams also work when started by a script without a console.
         AttachConsole(uint.MaxValue);
         Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
         Console.SetError(new StreamWriter(Console.OpenStandardError()) { AutoFlush = true });
-        exitCode = ConversionCommand.Run(args[0] == "--pdf" ? args[1..] : args,
-            Console.Out, Console.Error, "xFirW.exe --pdf");
+        exitCode = ConsoleCancellation.Run(token => AppArguments.Run(args, Console.Out, Console.Error, token));
         return true;
     }
 

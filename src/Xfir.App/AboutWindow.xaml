@@ -1,9 +1,12 @@
 <Window x:Class="Xfir.App.AboutWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Informazioni su xFirW" Width="540" SizeToContent="Height" ResizeMode="NoResize"
+        Title="Informazioni su xFirW" Width="540" Height="760" MinWidth="320" MinHeight="240" ResizeMode="CanResize"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Background="White"
         Icon="Assets/xFirW.ico" FontFamily="Segoe UI" Foreground="#172C46">
-  <StackPanel Margin="30">
+  <Grid Margin="24">
+    <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+    <ScrollViewer x:Name="ContentScroll" VerticalScrollBarVisibility="Auto">
+    <StackPanel>
     <TextBlock Text="xFirW" FontSize="32" FontWeight="SemiBold" />
     <TextBlock x:Name="VersionLabel" Foreground="#68798E" FontSize="13" Margin="0,3,0,0" />
     <TextBlock Text="Visualizzazione e stampa di formulari digitali XFIR" FontSize="14" TextWrapping="Wrap" Margin="0,14,0,0" />
@@ -28,6 +31,8 @@
       </StackPanel>
     </Border>
     <TextBlock Text="Verifica completa delle firme non eseguita. Progetto indipendente, non affiliato al RENTRI." TextWrapping="Wrap" Foreground="#68798E" FontSize="11" Margin="0,18,0,0" />
-    <Button Content="Chiudi" IsCancel="True" IsDefault="True" Click="OnClose" HorizontalAlignment="Right" Margin="0,24,0,0" MinWidth="90" />
-  </StackPanel>
+    </StackPanel>
+    </ScrollViewer>
+    <Button x:Name="CloseButton" Grid.Row="1" Content="Chiudi" IsCancel="True" IsDefault="True" Click="OnClose" HorizontalAlignment="Right" Margin="0,20,0,0" MinWidth="90" />
+  </Grid>
 </Window>

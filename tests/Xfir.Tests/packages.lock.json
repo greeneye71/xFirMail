@@ -12,6 +12,12 @@
           "Microsoft.TestPlatform.TestHost": "17.14.1"
         }
       },
+      "Microsoft.Web.WebView2": {
+        "type": "Direct",
+        "requested": "[1.0.3537.50, )",
+        "resolved": "1.0.3537.50",
+        "contentHash": "6RQRMIcc/xnhDCdBmyc+YoPxPlYHjmg/mfVpQb4iYWr+K/cs28dTxCyOYFZjUFtiwupXN9nCqxOSMumn2ZKAIg=="
+      },
       "xunit": {
         "type": "Direct",
         "requested": "[2.9.3, )",
@@ -61,11 +67,6 @@
           "Newtonsoft.Json": "13.0.3"
         }
       },
-      "Microsoft.Win32.SystemEvents": {
-        "type": "Transitive",
-        "resolved": "6.0.0",
-        "contentHash": "hqTM5628jSsQiv+HGpiq3WKBl2c8v1KZfby2J6Pr7pEPlK9waPdgEO6b8A/+/xn/yZ9ulv8HuqK71ONy2tg67A=="
-      },
       "Newtonsoft.Json": {
         "type": "Transitive",
         "resolved": "13.0.3",
@@ -76,30 +77,13 @@
         "resolved": "6.2.4",
         "contentHash": "GhTr9F1uOYXHCIEOB5PXIgqn5a8WLsJL2m0eewTA0IvY1j6N4HGXHKKmEyB90/N6vrjmYamf41V9zbmdW2HY3g==",
         "dependencies": {
-          "Microsoft.Extensions.Logging.Abstractions": "8.0.3",
-          "System.Security.Cryptography.Pkcs": "8.0.1"
+          "Microsoft.Extensions.Logging.Abstractions": "8.0.3"
         }
       },
       "QRCoder": {
         "type": "Transitive",
         "resolved": "1.6.0",
-        "contentHash": "XmPA81eo+oRxBuyVdswsSkTGTE1d3thfF11Z1PdD7oB56A6HU4G4AAOdySmGRMb/cljwlFTMWUtosGEnwpS6GA==",
-        "dependencies": {
-          "System.Drawing.Common": "6.0.0"
-        }
-      },
-      "System.Drawing.Common": {
-        "type": "Transitive",
-        "resolved": "6.0.0",
-        "contentHash": "NfuoKUiP2nUWwKZN6twGqXioIe1zVD0RIj2t976A+czLHr2nY454RwwXs6JU9Htc6mwqL6Dn/nEL3dpVf2jOhg==",
-        "dependencies": {
-          "Microsoft.Win32.SystemEvents": "6.0.0"
-        }
-      },
-      "System.Security.Cryptography.Pkcs": {
-        "type": "Transitive",
-        "resolved": "8.0.2",
-        "contentHash": "VWACYq0JGxi9sw3TonSSV4B2MfhYk5nhgOtp9wbrt5NFOtUetFqHkMZylcCwPX+117cBJH5EnIzIy6X4OKn/kA=="
+        "contentHash": "XmPA81eo+oRxBuyVdswsSkTGTE1d3thfF11Z1PdD7oB56A6HU4G4AAOdySmGRMb/cljwlFTMWUtosGEnwpS6GA=="
       },
       "xunit.abstractions": {
         "type": "Transitive",
@@ -149,29 +133,16 @@
         "dependencies": {
           "PDFsharp": "[6.2.4, )",
           "QRCoder": "[1.6.0, )",
-          "System.Security.Cryptography.Pkcs": "[8.0.2, )",
           "Xfir.Core": "[1.0.2, )"
         }
       }
     },
     "net10.0-windows7.0/win-x64": {
-      "Microsoft.Win32.SystemEvents": {
-        "type": "Transitive",
-        "resolved": "6.0.0",
-        "contentHash": "hqTM5628jSsQiv+HGpiq3WKBl2c8v1KZfby2J6Pr7pEPlK9waPdgEO6b8A/+/xn/yZ9ulv8HuqK71ONy2tg67A=="
-      },
-      "System.Drawing.Common": {
-        "type": "Transitive",
-        "resolved": "6.0.0",
-        "contentHash": "NfuoKUiP2nUWwKZN6twGqXioIe1zVD0RIj2t976A+czLHr2nY454RwwXs6JU9Htc6mwqL6Dn/nEL3dpVf2jOhg==",
-        "dependencies": {
-          "Microsoft.Win32.SystemEvents": "6.0.0"
-        }
-      },
-      "System.Security.Cryptography.Pkcs": {
-        "type": "Transitive",
-        "resolved": "8.0.2",
-        "contentHash": "VWACYq0JGxi9sw3TonSSV4B2MfhYk5nhgOtp9wbrt5NFOtUetFqHkMZylcCwPX+117cBJH5EnIzIy6X4OKn/kA=="
+      "Microsoft.Web.WebView2": {
+        "type": "Direct",
+        "requested": "[1.0.3537.50, )",
+        "resolved": "1.0.3537.50",
+        "contentHash": "6RQRMIcc/xnhDCdBmyc+YoPxPlYHjmg/mfVpQb4iYWr+K/cs28dTxCyOYFZjUFtiwupXN9nCqxOSMumn2ZKAIg=="
       }
     }
   }

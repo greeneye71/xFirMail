@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <XfirManifestTemplate>$(MSBuildProjectDirectory)/../../src/Xfir.App/app.manifest</XfirManifestTemplate>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Xfir.Rendering/Xfir.Rendering.csproj" />
+    <Compile Include="../../src/Shared/ConversionCommand.cs" Link="ConversionCommand.cs" />
+    <Compile Include="../../src/Shared/AppArguments.cs" Link="AppArguments.cs" />
+    <Compile Include="../../src/Shared/ConsoleCancellation.cs" Link="ConsoleCancellation.cs" />
+    <Compile Include="../../src/Xfir.App/CommandLineStartup.cs" Link="CommandLineStartup.cs" />
+  </ItemGroup>
+  <Import Project="../../build/GenerateWin32Manifest.targets" />
+</Project>

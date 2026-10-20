@@ -6,6 +6,7 @@
     <Project Path="src/Xfir.Rendering/Xfir.Rendering.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Xfir.StartupProbe/Xfir.StartupProbe.csproj" />
     <Project Path="tests/Xfir.Tests/Xfir.Tests.csproj" />
   </Folder>
 </Solution>

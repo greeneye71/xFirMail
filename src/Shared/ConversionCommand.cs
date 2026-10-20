@@ -9,7 +9,7 @@ namespace Xfir.CommandLine;
 // Shared by the console tool and the WPF executable so both exports behave identically.
 internal static class ConversionCommand
 {
-    public static int Run(string[] args, TextWriter output, TextWriter error, string command)
+    public static int Run(string[] args, TextWriter output, TextWriter error, string command, CancellationToken cancellationToken = default)
     {
         var help = args is ["--help" or "-h"];
         if (help || args.Length is < 1 or > 2 || args.Any(string.IsNullOrWhiteSpace)
@@ -24,7 +24,8 @@ internal static class ConversionCommand
 
         try
         {
-            var document = new XfirReader().Read(args[0]);
+            var budget = new ProcessingBudget(cancellationToken: cancellationToken);
+            var document = new XfirReader().Read(args[0], budget);
             if (args is [_, "--inspect"])
                 output.WriteLine(JsonSerializer.Serialize(new { document.Number, document.State, document.Producer, document.Recipient,
                     document.WasteCode, document.Quantity, document.Unit, document.SourceSha256, document.Warnings,
@@ -32,15 +33,19 @@ internal static class ConversionCommand
             else
             {
                 var destination = Path.GetFullPath(args.Length == 2 ? args[1] : Path.ChangeExtension(args[0], ".pdf"));
-                var pdf = new FormPdfRenderer().Render(document);
-                using (var file = new FileStream(destination, FileMode.CreateNew, FileAccess.Write))
-                    file.Write(pdf);
+                var pdf = new FormPdfRenderer().Render(document, budget: budget);
+                AtomicFileWriter.Write(destination, pdf, cancellationToken: cancellationToken);
                 output.WriteLine("PDF creato: " + destination);
                 foreach (var warning in document.Warnings) error.WriteLine("Avviso: " + warning);
             }
             return 0;
         }
-        catch (Exception e) when (e is XfirReadException or IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or NotSupportedException)
+        catch (OperationCanceledException)
+        {
+            error.WriteLine("Conversione annullata.");
+            return 1;
+        }
+        catch (Exception e) when (e is XfirReadException or ProcessingLimitException or IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or NotSupportedException)
         {
             error.WriteLine(e.Message);
             return 1;

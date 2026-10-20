@@ -36,6 +36,7 @@
         <Button Content="Apri XFIR" Command="Open" Background="#2359AD" Foreground="White" BorderBrush="#2359AD" ToolTip="Apri un formulario (Ctrl+O)" />
         <Button Content="Esporta PDF" Command="SaveAs" ToolTip="Salva una copia PDF (Ctrl+S)" />
         <Button Content="Stampa" Command="Print" ToolTip="Stampa il PDF visualizzato (Ctrl+P)" />
+        <Button x:Name="CancelButton" Content="Annulla" Click="OnCancel" Visibility="Collapsed" IsEnabled="False" ToolTip="Interrompi la lettura o la conversione in corso" />
       </StackPanel><Button Content="Informazioni" Click="OnAbout" HorizontalAlignment="Right" Margin="0" /></Grid>
     </Border>
     <Grid Grid.Row="2" Margin="18,18,18,12">

@@ -3,11 +3,13 @@
     <OutputType>WinExe</OutputType>
     <UseWPF>true</UseWPF>
     <AssemblyName>xFirW</AssemblyName>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <XfirManifestTemplate>$(MSBuildProjectDirectory)/app.manifest</XfirManifestTemplate>
     <ApplicationIcon>Assets/xFirW.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../Shared/ConversionCommand.cs" Link="ConversionCommand.cs" />
+    <Compile Include="../Shared/AppArguments.cs" Link="AppArguments.cs" />
+    <Compile Include="../Shared/ConsoleCancellation.cs" Link="ConsoleCancellation.cs" />
     <ProjectReference Include="../Xfir.Rendering/Xfir.Rendering.csproj" />
     <Resource Include="Assets/xFirW.ico" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3537.50" />
@@ -17,4 +19,5 @@
     <Content Include="../../CHANGELOG.md" Link="CHANGELOG.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../third-party/*" Link="third-party/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <Import Project="../../build/GenerateWin32Manifest.targets" />
 </Project>

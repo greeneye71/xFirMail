@@ -1,0 +1,20 @@
+<Project>
+  <!-- Run for normal and WPF temporary compilation; no source manifest is modified. -->
+  <Target Name="XfirGenerateWin32Manifest" BeforeTargets="_SetEmbeddedWin32ManifestProperties;CoreCompile" DependsOnTargets="GetAssemblyVersion"
+          Condition="'$(XfirManifestTemplate)' != ''">
+    <PropertyGroup>
+      <_XfirGeneratedManifest>$(IntermediateOutputPath)xfir.generated.manifest</_XfirGeneratedManifest>
+    </PropertyGroup>
+    <MakeDir Directories="$(IntermediateOutputPath)" />
+    <Copy SourceFiles="$(XfirManifestTemplate)" DestinationFiles="$(_XfirGeneratedManifest)" />
+    <XmlPoke XmlInputPath="$(_XfirGeneratedManifest)"
+             Query="/*[local-name()='assembly']/*[local-name()='assemblyIdentity']/@version"
+             Value="$(AssemblyVersion)" />
+    <PropertyGroup>
+      <ApplicationManifest>$(_XfirGeneratedManifest)</ApplicationManifest>
+      <Win32Manifest>$(_XfirGeneratedManifest)</Win32Manifest>
+      <EmbeddedWin32Manifest>$(_XfirGeneratedManifest)</EmbeddedWin32Manifest>
+    </PropertyGroup>
+    <ItemGroup><FileWrites Include="$(_XfirGeneratedManifest)" /></ItemGroup>
+  </Target>
+</Project>

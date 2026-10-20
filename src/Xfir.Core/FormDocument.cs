@@ -20,13 +20,13 @@ public sealed record XmlPart(string Name, XElement Root)
         var elements = Element(path)?.Elements() ?? [];
         return elements.Select(e => new XmlPart(Name, e));
     }
-    public IReadOnlyList<DataField> Fields => Root.DescendantsAndSelf()
+    public IReadOnlyList<DataField> Fields => EnumerateFields().ToArray();
+    internal IEnumerable<DataField> EnumerateFields() => Root.DescendantsAndSelf()
         .SelectMany(e => e.Attributes().Where(a => !a.IsNamespaceDeclaration)
             .Select(a => new DataField(Path(e) + "/@" + a.Name.LocalName, a.Value))
             .Concat(!e.HasElements ? [new DataField(Path(e), e.Value.Trim())]
                 : e.Nodes().OfType<XText>().Where(text => !string.IsNullOrWhiteSpace(text.Value))
-                    .Select(text => new DataField(Path(e) + "/text()", text.Value.Trim()))))
-        .ToList();
+                    .Select(text => new DataField(Path(e) + "/text()", text.Value.Trim()))));
     private static string Path(XElement e) => string.Join(" / ", e.AncestorsAndSelf().Reverse().Select(n => n.Name.LocalName));
 }
 
@@ -44,6 +44,7 @@ public sealed class FormDocument
     public XmlPart? PrimaryCarrier { get; init; }
     public required IReadOnlyList<XmlPart> Transports { get; init; }
     public required IReadOnlyList<XmlPart> Parts { get; init; }
+    public IReadOnlyList<DataField> OriginalFields { get; init; } = [];
     public required IReadOnlyList<SignatureInfo> Signatures { get; init; }
     public required IReadOnlyList<AttachmentInfo> Attachments { get; init; }
     public required IReadOnlyList<string> Warnings { get; init; }

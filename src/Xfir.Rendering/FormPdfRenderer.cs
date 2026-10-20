@@ -21,48 +21,66 @@ public sealed class FormPdfRenderer
     private XGraphics g = null!;
     private FormDocument form = null!;
     private PdfDocument pdf = null!;
+    private ProcessingBudget budget = null!;
+    private QRCodeData? qrData;
     private const double Left = 28, Width = 539;
 
-    public byte[] Render(FormDocument document, PdfRenderOptions? options = null)
+    public byte[] Render(FormDocument document, PdfRenderOptions? options = null, ProcessingBudget? budget = null)
     {
-        options ??= new();
-        lock (FontLock) GlobalFontSettings.FontResolver ??= new WindowsFontResolver();
-        form = document;
-        overflow.Clear();
-        using var result = new PdfDocument();
-        pdf = result;
-        pdf.Info.Title = "Formulario " + form.Number;
-        pdf.Info.Author = "xFirW";
-        pdf.Info.Creator = $"xFirW {ProductInfo.Version}";
-        pdf.Info.Subject = "Copia di consultazione del FIR digitale - verifica firme non eseguita";
-        AddPage("FORMULARIO RIFIUTI");
-        MainPage();
-        g.Dispose();
-        if (options.IncludeEmptySecondPage || form.AdditionalParts.Count > 0)
+        this.budget = budget ?? new();
+        this.budget.Check();
+        g = null!;
+        try
         {
-            AddPage("Integrazione FORMULARIO RIFIUTI   ·   2° foglio");
-            SecondPage();
+            options ??= new();
+            lock (FontLock) GlobalFontSettings.FontResolver ??= new WindowsFontResolver();
+            form = document;
+            overflow.Clear();
+            using var result = new PdfDocument();
+            pdf = result;
+            pdf.Info.Title = "Formulario " + form.Number;
+            pdf.Info.Author = "xFirW";
+            pdf.Info.Creator = $"xFirW {ProductInfo.Version}";
+            pdf.Info.Subject = "Copia di consultazione del FIR digitale - verifica firme non eseguita";
+            AddPage("FORMULARIO RIFIUTI");
+            MainPage();
             g.Dispose();
+            if (options.IncludeEmptySecondPage || form.AdditionalParts.Count > 0)
+            {
+                AddPage("Integrazione FORMULARIO RIFIUTI   ·   2° foglio");
+                SecondPage();
+                g.Dispose();
+            }
+            var supplements = overflow.ToList();
+            if (form.SupplementaryFields.Count > 0) supplements.Add(("Campi aggiuntivi del formulario", string.Join("\n", form.SupplementaryFields.Select(f => f.Field + ": " + f.Value))));
+            if (form.Warnings.Count > 0) supplements.Add(("Avvertenze di lettura", string.Join("\n", form.Warnings)));
+            foreach (var part in form.AdditionalParts)
+                supplements.Add(("Dati integrativi · " + part.Name, string.Join("\n", this.budget.GetFields(part).Select(f => f.Field + ": " + (f.Value.Length == 0 ? "(vuoto)" : f.Value)))));
+            if (form.Attachments.Count > 0)
+                supplements.Add(("Allegati presenti nel contenitore (non inclusi in questa copia)", string.Join("\n", form.Attachments.Select(a => a.Name + " · " + a.Size + " byte"))));
+            if (supplements.Count > 0) Appendix(supplements);
+            var generatedAt = FormFormatting.LocalTime(DateTimeOffset.UtcNow.ToString("O"));
+            for (var i = 0; i < pdf.PageCount; i++)
+            {
+                this.budget.Check();
+                using var footer = XGraphics.FromPdfPage(pdf.Pages[i], XGraphicsPdfPageOptions.Append);
+                footer.DrawString($"{form.Number} · xFirW {ProductInfo.Version} · {generatedAt}", Font(7), Ink, new XPoint(Left, 807));
+                footer.DrawString($"Pagina {i + 1} di {pdf.PageCount}", Font(7), Ink, new XRect(450, 799, 117, 12), XStringFormats.CenterRight);
+                footer.DrawString("Copia di consultazione · Firme e validità della vidimazione non verificate", Font(6.5), Label, new XPoint(Left, 821));
+            }
+            using var output = new MemoryStream();
+            this.budget.Check();
+            pdf.Save(output, false);
+            this.budget.Check();
+            return output.ToArray();
         }
-        var supplements = overflow.ToList();
-        if (form.SupplementaryFields.Count > 0) supplements.Add(("Campi aggiuntivi del formulario", string.Join("\n", form.SupplementaryFields.Select(f => f.Field + ": " + f.Value))));
-        if (form.Warnings.Count > 0) supplements.Add(("Avvertenze di lettura", string.Join("\n", form.Warnings)));
-        foreach (var part in form.AdditionalParts)
-            supplements.Add(("Dati integrativi · " + part.Name, string.Join("\n", part.Fields.Select(f => f.Field + ": " + (f.Value.Length == 0 ? "(vuoto)" : f.Value)))));
-        if (form.Attachments.Count > 0)
-            supplements.Add(("Allegati presenti nel contenitore (non inclusi in questa copia)", string.Join("\n", form.Attachments.Select(a => a.Name + " · " + a.Size + " byte"))));
-        if (supplements.Count > 0) Appendix(supplements);
-        var generatedAt = FormFormatting.LocalTime(DateTimeOffset.UtcNow.ToString("O"));
-        for (var i = 0; i < pdf.PageCount; i++)
+        finally
         {
-            using var footer = XGraphics.FromPdfPage(pdf.Pages[i], XGraphicsPdfPageOptions.Append);
-            footer.DrawString($"{form.Number} · xFirW {ProductInfo.Version} · {generatedAt}", Font(7), Ink, new XPoint(Left, 807));
-            footer.DrawString($"Pagina {i + 1} di {pdf.PageCount}", Font(7), Ink, new XRect(450, 799, 117, 12), XStringFormats.CenterRight);
-            footer.DrawString("Copia di consultazione · Firme e validità della vidimazione non verificate", Font(6.5), Label, new XPoint(Left, 821));
+            g?.Dispose();
+            qrData?.Dispose();
+            qrData = null;
+            this.budget = null!;
         }
-        using var output = new MemoryStream();
-        pdf.Save(output, false);
-        return output.ToArray();
     }
 
     private XFont Font(double size, bool bold = false)
@@ -74,6 +92,7 @@ public sealed class FormPdfRenderer
 
     private void AddPage(string title)
     {
+        budget.AddPage();
         var page = pdf.AddPage();
         page.Size = PdfSharp.PageSize.A4;
         g = XGraphics.FromPdfPage(page);
@@ -124,7 +143,7 @@ public sealed class FormPdfRenderer
         var intermediary = intermediaries.FirstOrDefault();
         Cell("Denominazione", intermediary?.Get("Denominazione") ?? "", 34, 324, 275, 20);
         Cell("Codice fiscale / iscrizione Albo", string.Join(" · ", new[] { intermediary?.Get("CodiceFiscale"), intermediary?.Get("NumeroIscrizioneAlbo") }.Where(s => !string.IsNullOrEmpty(s))), 315, 324, 246, 20);
-        foreach (var extra in intermediaries.Skip(1)) overflow.Add(("Ulteriore intermediario", string.Join("\n", extra.Fields.Select(f => f.Field + ": " + f.Value))));
+        foreach (var extra in intermediaries.Skip(1)) overflow.Add(("Ulteriore intermediario", string.Join("\n", budget.GetFields(extra).Select(f => f.Field + ": " + f.Value))));
 
         Section("6", "CARATTERISTICHE DEL RIFIUTO", 351, 129);
         Cell("Codice EER", FormFormatting.Eer(form.WasteCode), 34, 368, 125, 23, 10);
@@ -219,14 +238,20 @@ public sealed class FormPdfRenderer
         g.DrawRectangle(XBrushes.White, 480, qrTop, 82, 76);
         if (form.QrPayload is not null)
         {
-            using var generator = new QRCodeGenerator();
-            using var data = generator.CreateQrCode(Base45.Encode(form.QrPayload), QRCodeGenerator.ECCLevel.H);
+            if (qrData is null)
+            {
+                using var generator = new QRCodeGenerator();
+                qrData = generator.CreateQrCode(Base45.Encode(form.QrPayload), QRCodeGenerator.ECCLevel.H);
+            }
             // Drawing QR modules as vector squares preserves sharp edges at all print resolutions.
-            var matrix = data.ModuleMatrix;
+            var matrix = qrData.ModuleMatrix;
             var module = 74.0 / matrix.Count;
             for (var row = 0; row < matrix.Count; row++)
+            {
+                budget.Check();
                 for (var col = 0; col < matrix.Count; col++)
                     if (matrix[row][col]) g.DrawRectangle(XBrushes.Black, 484 + col * module, qrTop + row * module, module, module);
+            }
         }
         else Text("QR assente", 484, qrTop + 27, 74, 18, 8, color: XBrushes.DarkRed);
     }
@@ -271,9 +296,9 @@ public sealed class FormPdfRenderer
     {
         if (string.IsNullOrEmpty(value)) return;
         var font = Font(size, bold);
-        var lines = Wrap(value, width, font);
         var lineHeight = size * 1.18;
         var maxLines = Math.Max(1, (int)(height / lineHeight));
+        var lines = Wrap(value, width, font).Take(maxLines + 1).ToList();
         if (lines.Count > maxLines)
         {
             if (overflowTitle is not null) overflow.Add((overflowTitle, value));
@@ -287,26 +312,32 @@ public sealed class FormPdfRenderer
             g.DrawString(lines[i], font, color ?? Ink, new XPoint(x, y + size + i * lineHeight));
     }
 
-    private List<string> Wrap(string text, double width, XFont font)
+    private IEnumerable<string> Wrap(string text, double width, XFont font)
     {
-        var lines = new List<string>();
         foreach (var paragraph in text.Replace("\r", "").Split('\n'))
         {
+            budget.Check();
             var line = "";
             foreach (var word in paragraph.Split(' ', StringSplitOptions.RemoveEmptyEntries))
             {
+                budget.Check();
                 var candidate = line.Length > 0 ? line + " " + word : word;
                 if (g.MeasureString(candidate, font).Width <= width) { line = candidate; continue; }
-                if (line.Length > 0) { lines.Add(line); line = ""; }
+                if (line.Length > 0)
+                {
+                    yield return line;
+                    line = "";
+                    if (g.MeasureString(word, font).Width <= width) { line = word; continue; }
+                }
                 foreach (var character in word)
                 {
-                    if (line.Length > 0 && g.MeasureString(line + character, font).Width > width) { lines.Add(line); line = ""; }
+                    budget.Check();
+                    if (line.Length > 0 && g.MeasureString(line + character, font).Width > width) { yield return line; line = ""; }
                     line += character;
                 }
             }
-            lines.Add(line);
+            yield return line;
         }
-        return lines;
     }
 
     private void Appendix(List<(string Title, string Text)> supplements)

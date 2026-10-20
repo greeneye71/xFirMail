@@ -9,17 +9,51 @@ internal static class WindowPlacement
 {
     public static void FitToWorkArea(Window window)
     {
+        if (WorkArea(window) is not { } workArea) return;
+        FitBounds(window, workArea);
+    }
+
+    public static void ConstrainDialog(Window window)
+    {
+        var updating = false;
+        void Update()
+        {
+            if (updating || WorkArea(window) is not { } area) return;
+            try { updating = true; FitDialog(window, area); }
+            finally { updating = false; }
+        }
+        window.SourceInitialized += (_, _) => Update();
+        window.LocationChanged += (_, _) => Update();
+        window.DpiChanged += (_, _) => window.Dispatcher.BeginInvoke((Action)Update);
+    }
+
+    internal static void FitDialog(Window window, Rect workArea)
+    {
+        window.MinWidth = Math.Min(window.MinWidth, workArea.Width);
+        window.MinHeight = Math.Min(window.MinHeight, workArea.Height);
+        window.MaxWidth = workArea.Width;
+        window.MaxHeight = workArea.Height;
+        FitBounds(window, workArea);
+    }
+
+    private static Rect? WorkArea(Window window)
+    {
         var handle = new WindowInteropHelper(window).Handle;
+        if (handle == 0) return null;
         var source = HwndSource.FromHwnd(handle);
         var monitor = MonitorFromWindow(handle, 2); // MONITOR_DEFAULTTONEAREST
         var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
-        if (source?.CompositionTarget is null || !GetMonitorInfo(monitor, ref info)) return;
+        if (source?.CompositionTarget is null || !GetMonitorInfo(monitor, ref info)) return null;
 
         // Win32 uses device pixels; WPF window coordinates use units adjusted for the window's DPI.
         var transform = source.CompositionTarget.TransformFromDevice;
         var topLeft = transform.Transform(new Point(info.Work.Left, info.Work.Top));
         var bottomRight = transform.Transform(new Point(info.Work.Right, info.Work.Bottom));
-        var workArea = new Rect(topLeft, bottomRight);
+        return new Rect(topLeft, bottomRight);
+    }
+
+    private static void FitBounds(Window window, Rect workArea)
+    {
         window.MinWidth = Math.Min(window.MinWidth, workArea.Width);
         window.MinHeight = Math.Min(window.MinHeight, workArea.Height);
         window.Width = Math.Min(window.Width, workArea.Width);

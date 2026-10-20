@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: EUPL-1.2
-using System.ComponentModel;
 using System.IO;
-using System.Text;
 using System.Windows;
 using System.Windows.Input;
 using Microsoft.Web.WebView2.Core;
@@ -24,6 +22,7 @@ public partial class MainWindow : Window
     private bool previewReady;
     private bool closed;
     private bool browserInitialized;
+    private CancellationTokenSource? operationCancellation;
 
     public MainWindow(string? initialFile = null)
     {
@@ -67,17 +66,26 @@ public partial class MainWindow : Window
     {
         if (busy || closed) return;
         busy = true;
+        using var cancellation = new CancellationTokenSource();
+        operationCancellation = cancellation;
+        CancelButton.Visibility = Visibility.Visible;
+        CancelButton.IsEnabled = true;
         StatusLabel.Text = "Lettura del formulario e preparazione del PDF…";
         CommandManager.InvalidateRequerySuggested();
         try
         {
             var result = await Task.Run(() =>
             {
-                var document = new XfirReader().Read(path);
-                var pdf = new FormPdfRenderer().Render(document);
-                return (document, pdf);
+                var budget = new ProcessingBudget(cancellationToken: cancellation.Token);
+                var document = new XfirReader().Read(path, budget);
+                var pdf = new FormPdfRenderer().Render(document, budget: budget);
+                var details = DocumentDetails.Build(document, budget);
+                budget.Check();
+                return (document, pdf, details);
             });
             if (closed) return;
+            cancellation.Token.ThrowIfCancellationRequested();
+            CancelButton.IsEnabled = false;
             // Commit the new document only after a successful read/render; a failed open preserves the previous one.
             current = result.document;
             currentPdf = result.pdf;
@@ -93,32 +101,37 @@ public partial class MainWindow : Window
                 : (FormFormatting.Quantity(acceptedQuantity) + " " + current.Acceptance?.Attribute("QuantitaAccettata", "unitaMisura")).Trim();
             FileLabel.Text = current.SourceName;
             WarningLabel.Text = string.Join("\n\n", current.Warnings);
-            DataGrid.ItemsSource = current.Parts.SelectMany(p => p.Fields
-                .Where(f => !f.Field.Contains("Signature", StringComparison.Ordinal))
-                .Select(f => new DataField(p.Name + " · " + f.Field, f.Value))).ToList();
-            var details = new StringBuilder("FIRME PRESENTI · VERIFICA COMPLETA NON ESEGUITA\n\n");
-            foreach (var signature in current.Signatures)
-            {
-                details.AppendLine(signature.Signer).AppendLine(signature.FileName)
-                    .AppendLine("Data dichiarata: " + FormFormatting.LocalTime(signature.SignedAt))
-                    .AppendLine("Certificato: " + signature.Subject)
-                    .AppendLine("Riferimenti: " + string.Join(", ", signature.References)).AppendLine();
-            }
-            details.AppendLine("ALLEGATI PDF");
-            details.AppendLine(current.Attachments.Count == 0 ? "Nessun allegato presente." : "Gli allegati sono elencati, ma apertura ed esportazione non sono ancora implementate.");
-            foreach (var attachment in current.Attachments) details.AppendLine(attachment.Name + " · " + attachment.Size + " byte");
-            details.AppendLine().AppendLine("SHA-256 del file originale:").AppendLine(current.SourceSha256);
-            SignaturesText.Text = details.ToString();
+            DataGrid.ItemsSource = current.OriginalFields;
+            SignaturesText.Text = result.details;
             Title = current.Number + " · xFirW";
             Tabs.SelectedIndex = 0;
             await ShowPreview(currentPdf);
         }
-        catch (Exception ex) when (ex is XfirReadException or IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        catch (OperationCanceledException)
         {
+            if (!closed) StatusLabel.Text = "Operazione annullata. " + (current is null ? "Scegli un file." : "Il documento precedente è ancora disponibile.");
+        }
+        catch (Exception ex) when (ex is XfirReadException or ProcessingLimitException or IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        {
+            if (closed) return;
             StatusLabel.Text = "Apertura non riuscita. " + (current is null ? "Scegli un altro file." : "Il documento precedente è ancora disponibile.");
             MessageBox.Show(this, ex.Message, "Impossibile aprire il formulario", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
-        finally { busy = false; CommandManager.InvalidateRequerySuggested(); }
+        finally
+        {
+            operationCancellation = null;
+            busy = false;
+            CancelButton.IsEnabled = false;
+            CancelButton.Visibility = Visibility.Collapsed;
+            CommandManager.InvalidateRequerySuggested();
+        }
+    }
+
+    private void OnCancel(object sender, RoutedEventArgs e)
+    {
+        operationCancellation?.Cancel();
+        CancelButton.IsEnabled = false;
+        StatusLabel.Text = "Annullamento dell'operazione…";
     }
 
     private async Task ShowPreview(byte[] pdf)
@@ -184,7 +197,7 @@ public partial class MainWindow : Window
         var safeName = string.Concat(current.Number.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
         var dialog = new SaveFileDialog { Title = "Esporta la copia del formulario", Filter = "Documento PDF (*.pdf)|*.pdf", FileName = safeName + ".pdf", AddExtension = true, OverwritePrompt = true };
         if (dialog.ShowDialog(this) != true) return;
-        try { File.WriteAllBytes(dialog.FileName, currentPdf); StatusLabel.Text = "PDF esportato: " + Path.GetFileName(dialog.FileName); }
+        try { AtomicFileWriter.Write(dialog.FileName, currentPdf, overwrite: true); StatusLabel.Text = "PDF esportato: " + Path.GetFileName(dialog.FileName); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { MessageBox.Show(this, ex.Message, "Esportazione non riuscita", MessageBoxButton.OK, MessageBoxImage.Warning); }
     }
     private void OnPrint(object sender, ExecutedRoutedEventArgs e)
@@ -199,6 +212,7 @@ public partial class MainWindow : Window
     private void OnClosed(object? sender, EventArgs e)
     {
         closed = true;
+        operationCancellation?.Cancel();
         Preview.Dispose();
         foreach (var file in previewFiles)
             try { File.Delete(file); } catch (IOException) { } catch (UnauthorizedAccessException) { }
