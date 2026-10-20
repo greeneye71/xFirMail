@@ -138,20 +138,30 @@ public sealed class XfirReader
         if (departure is not null && departure.Get("NumeroFIR") != number)
             throw new XfirReadException("Il numero FIR dei dati di partenza non corrisponde alla vidimazione.");
         var transports = formParts.Where(p => p.Root.Name.LocalName == "Trasporto").OrderBy(p => p.Name, StringComparer.Ordinal).ToList();
-        var carriers = departure?.Children("Trasportatori").ToList() ?? [];
+        var carriers = departure?.Children("Trasportatori")
+            .Where(p => p.Root.Name == XName.Get("Trasportatore", FormNamespace)).ToList() ?? [];
         var ids = new HashSet<string>();
         foreach (var carrier in carriers)
             if (!ids.Add(carrier.Root.Attribute("id")?.Value ?? "")) throw new XfirReadException("Identificativo del trasportatore duplicato.");
         foreach (var transport in transports)
-            if (!ids.Contains(transport.Root.Attribute("idRef")?.Value ?? "")) warnings.Add("Trasporto senza anagrafica collegata: " + transport.Name);
+        {
+            var reference = transport.Root.Attribute("idRef")?.Value;
+            if (string.IsNullOrWhiteSpace(reference) || !ids.Contains(reference))
+                warnings.Add("Trasporto senza anagrafica collegata: " + transport.Name + " (idRef: " + (reference ?? "assente") + ")");
+        }
 
         var additional = parts.Where(p => p != endorsement && p != departure && p != acceptance && !transports.Contains(p) && p.Root.Name != XName.Get("Metadati", FormNamespace)).ToList();
         // The two-page layout covers one terrestrial leg. Keep every other leg visible in the appendix.
         if (transports.Count > 1) additional.AddRange(transports.Skip(1));
         if (transports.FirstOrDefault() is { } first && first.Element("TrasportoTerrestre") is null) additional.Add(first);
-        var displayedCarrier = carriers.FirstOrDefault(c => c.Root.Attribute("id")?.Value == transports.FirstOrDefault()?.Root.Attribute("idRef")?.Value) ?? carriers.FirstOrDefault();
+        // Preliminary documents may show their first carrier; existing legs require a valid link.
+        var firstTransport = transports.FirstOrDefault();
+        var firstReference = firstTransport?.Root.Attribute("idRef")?.Value;
+        var displayedCarrier = firstTransport is null ? carriers.FirstOrDefault()
+            : string.IsNullOrWhiteSpace(firstReference) ? null
+            : carriers.FirstOrDefault(c => c.Root.Attribute("id")?.Value == firstReference);
         additional.AddRange(carriers.Where(c => c != displayedCarrier).Select(c => new XmlPart("partenza.xml · trasportatore " + c.Root.Attribute("id")?.Value, c.Root)));
-        var supplementary = LayoutCoverage.Unmapped(departure, transports.FirstOrDefault(), acceptance);
+        var supplementary = LayoutCoverage.Unmapped(endorsement, departure, firstTransport, acceptance, displayedCarrier, additional);
         if (additional.Count > 0 || supplementary.Count > 0) warnings.Add("Alcuni dati sono riportati nell'appendice: il modulo principale è una rappresentazione parziale.");
         if (departure is null) warnings.Add("Dati di partenza assenti: il documento contiene soltanto una fase preliminare.");
 
@@ -166,7 +176,7 @@ public sealed class XfirReader
         return new FormDocument
         {
             SourceName = sourceName, SourceSha256 = Convert.ToHexString(SHA256.HashData(source)), Endorsement = endorsement,
-            Departure = departure, Acceptance = acceptance, Transports = transports, Parts = parts,
+            Departure = departure, Acceptance = acceptance, PrimaryCarrier = displayedCarrier, Transports = transports, Parts = parts,
             Signatures = signatures, Attachments = attachments, AdditionalParts = additional, SupplementaryFields = supplementary, QrPayload = qr, Warnings = warnings
         };
     }

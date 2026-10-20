@@ -23,7 +23,9 @@ public sealed record XmlPart(string Name, XElement Root)
     public IReadOnlyList<DataField> Fields => Root.DescendantsAndSelf()
         .SelectMany(e => e.Attributes().Where(a => !a.IsNamespaceDeclaration)
             .Select(a => new DataField(Path(e) + "/@" + a.Name.LocalName, a.Value))
-            .Concat(!e.HasElements ? [new DataField(Path(e), e.Value.Trim())] : []))
+            .Concat(!e.HasElements ? [new DataField(Path(e), e.Value.Trim())]
+                : e.Nodes().OfType<XText>().Where(text => !string.IsNullOrWhiteSpace(text.Value))
+                    .Select(text => new DataField(Path(e) + "/text()", text.Value.Trim()))))
         .ToList();
     private static string Path(XElement e) => string.Join(" / ", e.AncestorsAndSelf().Reverse().Select(n => n.Name.LocalName));
 }
@@ -39,6 +41,7 @@ public sealed class FormDocument
     public required XmlPart Endorsement { get; init; }
     public XmlPart? Departure { get; init; }
     public XmlPart? Acceptance { get; init; }
+    public XmlPart? PrimaryCarrier { get; init; }
     public required IReadOnlyList<XmlPart> Transports { get; init; }
     public required IReadOnlyList<XmlPart> Parts { get; init; }
     public required IReadOnlyList<SignatureInfo> Signatures { get; init; }
@@ -54,7 +57,7 @@ public sealed class FormDocument
     public string Quantity => FormFormatting.Quantity(Departure?.Get("Rifiuto/Quantita"));
     public string Unit => Departure?.Attribute("Rifiuto/Quantita", "unitaMisura") ?? "";
     public bool IsPartial => AdditionalParts.Count > 0 || SupplementaryFields.Count > 0;
-    public string State => Parts.Any(p => p.Root.Name.LocalName == "Annullamento") ? "Nota di annullamento presente"
+    public string State => Parts.Any(p => p.Root.Name == XName.Get("Annullamento", XfirReader.FormNamespace)) ? "Nota di annullamento presente"
         : Acceptance is not null ? Acceptance.Get("TipoAccettazione") switch
         {
             "A" => "Accettazione per intero registrata", "P" => "Accettazione parziale registrata",

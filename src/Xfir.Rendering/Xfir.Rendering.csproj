@@ -2,6 +2,8 @@
   <ItemGroup>
     <ProjectReference Include="../Xfir.Core/Xfir.Core.csproj" />
     <PackageReference Include="PDFsharp" Version="6.2.4" />
+    <!-- Override PDFsharp's vulnerable transitive dependency (CVE-2026-70162 / CVE-2026-84008). -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="8.0.2" />
     <PackageReference Include="QRCoder" Version="1.6.0" />
   </ItemGroup>
 </Project>

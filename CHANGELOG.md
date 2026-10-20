@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.2 — 2026-10-20
+
+- Corretti i rilievi R01-R04 del report: dati XML non rappresentati e duplicati conservati in appendice, gestione completa delle eccedenze ADR, collegamento al trasportatore risolto senza associazioni di ripiego e verifica del namespace negli eventi di annullamento. Aggiunti 24 casi di regressione; 68 test superati complessivamente. La build di distribuzione è rinviata fino alla risoluzione degli altri rilievi.
+- Corretti gli avvisi CVE-2026-70162 e CVE-2026-84008 aggiornando la dipendenza Pkcs a 8.0.2 e richiedendo il runtime .NET 10.0.13, anche nei pacchetti con runtime incluso. Il packaging verifica i componenti effettivamente distribuiti; le vulnerabilità NuGet, anche transitive, bloccano il ripristino e la compilazione.
+- Aggiunta la conversione senza interfaccia con `xFirW.exe --pdf <documento.xfir> [copia.pdf]`, con messaggi su console e codici di uscita per gli script. L'apertura normale e l'associazione `.xfir` mantengono l'anteprima.
+- Il convertitore `Xfir.Cli` accetta anche il solo percorso XFIR: il PDF viene salvato accanto all'originale con lo stesso nome, senza sovrascrivere file esistenti. Lo stesso comportamento è disponibile nell'eseguibile grafico con `--pdf`.
+- Il piè di pagina e i metadati dei PDF ricavano la versione dagli stessi metadati di compilazione usati dall'interfaccia: eliminato il numero fisso `0.1`, per mantenere automaticamente coerenti le versioni future.
+- Aggiornata la versione dell'applicazione a 1.0.2 e del pacchetto Microsoft Store a 1.0.2.0.
+
 ## 1.0.1 — 2026-10-13
 
 - Uniformata la versione a 1.0.1 nella barra inferiore, nella finestra Informazioni e nei metadati degli assembly. Il pacchetto Microsoft Store usa la versione 1.0.1.0.

@@ -42,7 +42,7 @@
         "dependencies": {
           "PDFsharp": "[6.2.4, )",
           "QRCoder": "[1.6.0, )",
-          "Xfir.Core": "[0.1.1, )"
+          "Xfir.Core": "[1.0.2, )"
         }
       }
     },

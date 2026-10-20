@@ -28,6 +28,13 @@ jobs:
         run: dotnet build xFirW.slnx -c Release --no-restore -m:1
       - name: Test synthetic documents
         run: dotnet test tests/Xfir.Tests -c Release --no-build --no-restore --logger trx --results-directory artifacts/test-results
+      - name: Check bundled runtime security
+        shell: pwsh
+        run: |
+          dotnet publish src/Xfir.App -c Release -r win-x64 --self-contained true --no-restore -o artifacts/runtime-check
+          if ($LASTEXITCODE -ne 0) { throw 'Self-contained publish failed.' }
+          [xml]$props = Get-Content Directory.Build.props -Raw
+          ./scripts/Assert-SecureRuntime.ps1 -Layout artifacts/runtime-check -MinimumVersion $props.Project.PropertyGroup.MinimumSecureRuntimeVersion
       - name: Publish prototype (requires .NET Desktop Runtime 10 and WebView2)
         run: dotnet publish src/Xfir.App -c Release --no-restore -o artifacts/xFirW
       - name: Refuse documents in the published output

@@ -8,6 +8,12 @@ public partial class App : Application
 {
     private void OnStartup(object sender, StartupEventArgs e)
     {
+        if (CommandLineStartup.TryRun(e.Args, out var exitCode))
+        {
+            Shutdown(exitCode);
+            return;
+        }
+
         if (!DisclaimerStore.IsAccepted())
         {
             // Keep the process alive while the notice is the only window.

@@ -3,49 +3,98 @@ using System.Xml.Linq;
 
 namespace Xfir.Core;
 
-// Only fields actually rendered (or used for a relationship) belong here.
-// New schema fields automatically become visible in the supplementary appendix.
+// Track the XML occurrences actually selected by the layout. Other occurrences,
+// foreign namespaces and unknown attributes must remain visible in the appendix.
 internal static class LayoutCoverage
 {
-    private static readonly HashSet<string> DepartureFields = new(StringComparer.Ordinal)
-    {
+    private static readonly string[] EndorsementFields =
+    ["NumeroFir", "DataRichiesta", "CCIAANome", "CodiceFiscaleSoggetto", "DenominazioneSoggetto"];
+    private static readonly string[] DepartureFields =
+    [
         "DataEmissione", "NumeroFIR", "Annotazioni",
         "Rifiuto/CodiceEER", "Rifiuto/Descrizione", "Rifiuto/StatoFisico", "Rifiuto/Provenienza",
         "Rifiuto/Quantita", "Rifiuto/VerificatoInPartenza", "Rifiuto/NumeroColli", "Rifiuto/Rinfusa",
-        "Rifiuto/CaratteristicheChimicoFisiche", "Rifiuto/ClassiPericolo/ClassePericolo", "Rifiuto/TrasportoADR",
+        "Rifiuto/CaratteristicheChimicoFisiche",
         "Rifiuto/DatiADR/Classe", "Rifiuto/DatiADR/NumeroONU", "Rifiuto/DatiADR/Note"
-    };
-    private static readonly HashSet<string> TransportFields = new(StringComparer.Ordinal)
-    {
+    ];
+    private static readonly string[] ActorFields =
+    ["Denominazione", "CodiceFiscale", "Indirizzo/Indirizzo", "Indirizzo/Civico", "Indirizzo/CAP",
+        "Indirizzo/Citta/Comune", "Indirizzo/Citta/ComuneEstero", "Autorizzazione/Numero", "Autorizzazione/Tipo"];
+    private static readonly string[] CarrierFields = ["Denominazione", "CodiceFiscale", "NumeroIscrizioneAlbo", "TipoTrasporto"];
+    private static readonly string[] IntermediaryFields = ["Denominazione", "CodiceFiscale", "NumeroIscrizioneAlbo"];
+    private static readonly string[] TransportFields =
+    [
         "TrasportoTerrestre/Conducente/Nome", "TrasportoTerrestre/Conducente/Cognome", "TrasportoTerrestre/TargaAutomezzo",
         "TrasportoTerrestre/TargaRimorchio", "TrasportoTerrestre/DataOraInizioTrasporto", "TrasportoTerrestre/Percorso"
-    };
-    private static readonly HashSet<string> AcceptanceFields = new(StringComparer.Ordinal)
+    ];
+    private static readonly string[] AcceptanceFields =
+    [
+        "QuantitaAccettata", "DataOraArrivo", "AttesaVerificaAnalitica", "MotivoRespingimento"
+    ];
+    internal static IReadOnlyList<DataField> Unmapped(XmlPart endorsement, XmlPart? departure,
+        XmlPart? transport, XmlPart? acceptance, XmlPart? displayedCarrier, IEnumerable<XmlPart> additional)
     {
-        "TipoAccettazione", "QuantitaAccettata", "DataOraArrivo", "AttesaVerificaAnalitica", "MotivoRespingimento"
-    };
-    internal static IReadOnlyList<DataField> Unmapped(XmlPart? departure, XmlPart? transport, XmlPart? acceptance)
-    {
-        var allowed = new HashSet<string>(DepartureFields, StringComparer.Ordinal);
-        foreach (var actor in new[] { "Produttore", "Destinatario" })
+        var used = new HashSet<XObject>();
+        void Value(XElement? element)
         {
-            foreach (var field in new[] { "Denominazione", "CodiceFiscale", "Indirizzo/Indirizzo", "Indirizzo/Civico", "Indirizzo/CAP", "Indirizzo/Citta/Comune", "Indirizzo/Citta/ComuneEstero", "Autorizzazione/Numero", "Autorizzazione/Tipo" })
-                allowed.Add(actor + "/" + field);
+            if (element is not null)
+                foreach (var text in element.DescendantNodes().OfType<XText>()) used.Add(text);
         }
-        allowed.Add("Produttore/NumeroIscrizioneAlbo");
-        allowed.Add("Destinatario/Attivita");
-        foreach (var field in new[] { "Denominazione", "CodiceFiscale", "NumeroIscrizioneAlbo", "NumIscrSito", "TipoTrasporto" }) allowed.Add("Trasportatori/Trasportatore/" + field);
-        foreach (var field in new[] { "Denominazione", "CodiceFiscale", "NumeroIscrizioneAlbo" }) allowed.Add("Intermediari/Intermediario/" + field);
-        return Fields(departure, allowed).Concat(Fields(transport, TransportFields)).Concat(Fields(acceptance, AcceptanceFields)).ToList();
-    }
-    private static IEnumerable<DataField> Fields(XmlPart? part, HashSet<string> allowed)
-    {
-        if (part is null) yield break;
-        foreach (var leaf in part.Root.Descendants().Where(e => !e.HasElements && !string.IsNullOrWhiteSpace(e.Value)))
+        void Values(XmlPart? part, IEnumerable<string> paths)
         {
-            var path = string.Join('/', leaf.AncestorsAndSelf().TakeWhile(e => e != part.Root).Reverse().Select(e => e.Name.LocalName));
-            if (leaf.Name.Namespace != part.Root.Name.Namespace || !allowed.Contains(path))
-                yield return new DataField(part.Name + " · " + path, leaf.Value.Trim());
+            foreach (var path in paths) Value(part?.Element(path));
+        }
+        void Attribute(XAttribute? attribute)
+        {
+            if (attribute is not null) used.Add(attribute);
+        }
+        void Subtree(XmlPart part)
+        {
+            Value(part.Root);
+            foreach (var attribute in part.Root.DescendantsAndSelf().Attributes()) used.Add(attribute);
+        }
+
+        Values(endorsement, EndorsementFields);
+        Values(departure, DepartureFields);
+        if (departure?.Get("Rifiuto/TrasportoADR") is "true" or "false" or "1" or "0")
+            Value(departure.Element("Rifiuto/TrasportoADR"));
+        foreach (var actor in new[] { "Produttore", "Destinatario" })
+            Values(departure, ActorFields.Select(field => actor + "/" + field));
+        Values(departure, ["Produttore/NumeroIscrizioneAlbo", "Destinatario/Attivita"]);
+        Values(displayedCarrier, CarrierFields);
+        Attribute(displayedCarrier?.Root.Attribute("id"));
+        Attribute(departure?.Element("Rifiuto/Quantita")?.Attribute("unitaMisura"));
+        Values(transport, TransportFields);
+        Attribute(transport?.Root.Attribute("idRef"));
+        Values(acceptance, AcceptanceFields);
+        if (acceptance?.Get("TipoAccettazione") is "A" or "P" or "R") Value(acceptance.Element("TipoAccettazione"));
+        Attribute(acceptance?.Element("QuantitaAccettata")?.Attribute("unitaMisura"));
+
+        foreach (var hazard in departure?.Children("Rifiuto/ClassiPericolo") ?? []) Value(hazard.Root);
+        var intermediaries = departure?.Children("Intermediari").ToList() ?? [];
+        Values(intermediaries.FirstOrDefault(), IntermediaryFields);
+        // Further intermediaries and unselected carriers are printed in full in the appendix.
+        foreach (var part in intermediaries.Skip(1).Concat(additional)) Subtree(part);
+
+        return new[] { endorsement, departure, transport, acceptance }.OfType<XmlPart>()
+            .SelectMany(part => Fields(part, used)).ToList();
+    }
+    private static IEnumerable<DataField> Fields(XmlPart part, HashSet<XObject> used)
+    {
+        string Name(XName name) => name.Namespace == part.Root.Name.Namespace || name.Namespace == XNamespace.None
+            ? name.LocalName : name.ToString();
+        string Path(XElement element) => string.Join('/', element.AncestorsAndSelf()
+            .TakeWhile(e => e != part.Root).Reverse().Select(e => Name(e.Name)));
+        foreach (var element in part.Root.DescendantsAndSelf())
+        {
+            var path = Path(element);
+            foreach (var attribute in element.Attributes().Where(a => !a.IsNamespaceDeclaration && !used.Contains(a)))
+                yield return new DataField(part.Name + " · " + path + "/@" + Name(attribute.Name), attribute.Value);
+            var unrepresented = element.Nodes().OfType<XText>()
+                .Where(text => !used.Contains(text) && !string.IsNullOrWhiteSpace(text.Value)).ToList();
+            if (unrepresented.Count > 0)
+                yield return new DataField(part.Name + " · " + path + (element.HasElements ? "/text()" : ""),
+                    string.Concat(unrepresented.Select(text => text.Value)).Trim());
         }
     }
 }

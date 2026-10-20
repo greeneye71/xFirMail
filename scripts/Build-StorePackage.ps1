@@ -14,8 +14,8 @@ Set-StrictMode -Version Latest
 $repo = Split-Path $PSScriptRoot -Parent
 
 # Use the same version as the application unless an explicit package version is requested.
+[xml]$buildProps = Get-Content -LiteralPath (Join-Path $repo 'Directory.Build.props') -Raw
 if ([string]::IsNullOrWhiteSpace($PackageVersion)) {
-    [xml]$buildProps = Get-Content -LiteralPath (Join-Path $repo 'Directory.Build.props') -Raw
     $PackageVersion = $buildProps.Project.PropertyGroup.Version + '.0'
 }
 
@@ -34,7 +34,7 @@ if ($IdentityName -notmatch '^[A-Za-z0-9.-]{3,50}$' -or $Publisher -notmatch '^C
 $parsedVersion = $null
 if ($PackageVersion -notmatch '^\d+\.\d+\.\d+\.0$' -or
     -not [Version]::TryParse($PackageVersion, [ref]$parsedVersion)) {
-    throw 'PackageVersion must contain four numbers and end in .0 (for example 1.0.1.0).'
+    throw 'PackageVersion must contain four numbers and end in .0 (for example 1.0.2.0).'
 }
 if ($parsedVersion.Major -lt 1 -or $parsedVersion.Major -gt 65535 -or
     $parsedVersion.Minor -gt 65535 -or $parsedVersion.Build -gt 65535) {
@@ -72,6 +72,8 @@ if ($binaryVersion.FileVersion -ne $PackageVersion -or
     ($binaryVersion.ProductVersion -split '\+')[0] -ne $parsedVersion.ToString(3)) {
     throw 'Application and package versions do not match.'
 }
+$minimumRuntime = [Version]$buildProps.Project.PropertyGroup.MinimumSecureRuntimeVersion
+& (Join-Path $PSScriptRoot 'Assert-SecureRuntime.ps1') -Layout $layout -MinimumVersion $minimumRuntime
 # User documents (real formulari, exported copies) must never be shipped inside the package.
 $documents = Get-ChildItem -LiteralPath $layout -Recurse -File | Where-Object { $_.Extension -in '.xfir', '.pdf' }
 if ($documents) { throw "Documents found in the package layout: $($documents.FullName -join ', ')" }

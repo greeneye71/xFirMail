@@ -33,6 +33,7 @@ public sealed class FormPdfRenderer
         pdf = result;
         pdf.Info.Title = "Formulario " + form.Number;
         pdf.Info.Author = "xFirW";
+        pdf.Info.Creator = $"xFirW {ProductInfo.Version}";
         pdf.Info.Subject = "Copia di consultazione del FIR digitale - verifica firme non eseguita";
         AddPage("FORMULARIO RIFIUTI");
         MainPage();
@@ -55,7 +56,7 @@ public sealed class FormPdfRenderer
         for (var i = 0; i < pdf.PageCount; i++)
         {
             using var footer = XGraphics.FromPdfPage(pdf.Pages[i], XGraphicsPdfPageOptions.Append);
-            footer.DrawString($"{form.Number} · xFirW 0.1 · {generatedAt}", Font(7), Ink, new XPoint(Left, 807));
+            footer.DrawString($"{form.Number} · xFirW {ProductInfo.Version} · {generatedAt}", Font(7), Ink, new XPoint(Left, 807));
             footer.DrawString($"Pagina {i + 1} di {pdf.PageCount}", Font(7), Ink, new XRect(450, 799, 117, 12), XStringFormats.CenterRight);
             footer.DrawString("Copia di consultazione · Firme e validità della vidimazione non verificate", Font(6.5), Label, new XPoint(Left, 821));
         }
@@ -110,12 +111,13 @@ public sealed class FormPdfRenderer
         Cell("Destinazione", D("Destinatario/Attivita"), 495, 230, 66, 15, 6.5);
 
         var transport = form.Transports.FirstOrDefault();
-        var carrier = d?.Children("Trasportatori").FirstOrDefault(p => p.Root.Attribute("id")?.Value == transport?.Root.Attribute("idRef")?.Value)
-            ?? d?.Children("Trasportatori").FirstOrDefault();
+        var carrier = form.PrimaryCarrier;
         Section("4", "TRASPORTATORE", 251, 54);
-        Cell("Denominazione", carrier?.Get("Denominazione") ?? "", 34, 267, 527, 19);
+        Cell("Denominazione", carrier?.Get("Denominazione")
+            ?? (transport is null ? "" : "Anagrafica non collegata: consultare l'appendice"), 34, 267, 527, 19);
         Cell("Codice fiscale", carrier?.Get("CodiceFiscale") ?? "", 34, 287, 260, 15, 6.5);
-        Cell("Numero iscrizione Albo", carrier?.Get("NumeroIscrizioneAlbo") ?? "", 300, 287, 261, 15, 6.5);
+        Cell("Numero iscrizione Albo", carrier?.Get("NumeroIscrizioneAlbo") ?? "", 300, 287, 170, 15, 6.5);
+        Cell("Tipo trasporto", carrier?.Get("TipoTrasporto") ?? "", 476, 287, 85, 15, 6.5);
 
         Section("5", "INTERMEDIARIO O COMMERCIANTE", 308, 40);
         var intermediaries = d?.Children("Intermediari").ToList() ?? [];
@@ -137,7 +139,8 @@ public sealed class FormPdfRenderer
         Cell("Caratteristiche chimico-fisiche", D("Rifiuto/CaratteristicheChimicoFisiche"), 34, 439, 527, 16, 6.5);
         Text("Trasporto ADR / RID", 34, 459, 85, 10, 6.5, color: Label);
         Check(121, 460, D("Rifiuto/TrasportoADR") is "true" or "1");
-        Text("Classe " + D("Rifiuto/DatiADR/Classe") + "   ONU " + D("Rifiuto/DatiADR/NumeroONU"), 139, 459, 160, 10, 7);
+        Text("Classe " + D("Rifiuto/DatiADR/Classe") + "   ONU " + D("Rifiuto/DatiADR/NumeroONU"), 139, 459, 160, 10, 7,
+            overflowTitle: "Classe ADR / numero ONU");
         // Notes have a separate generous band, avoiding truncation in the tightly packed ADR row.
         Section("", "NOTE ADR / RID", 483, 40);
         Text(D("Rifiuto/DatiADR/Note"), 34, 499, 527, 21, 6.5, overflowTitle: "Note ADR / RID");
@@ -274,7 +277,8 @@ public sealed class FormPdfRenderer
         if (lines.Count > maxLines)
         {
             if (overflowTitle is not null) overflow.Add((overflowTitle, value));
-            var tail = " … [segue]";
+            // Only promise a continuation when the complete value has been registered.
+            var tail = overflowTitle is null ? " …" : " … [segue]";
             var final = lines[maxLines - 1];
             while (final.Length > 0 && g.MeasureString(final + tail, font).Width > width) final = final[..^1];
             lines[maxLines - 1] = final + tail;

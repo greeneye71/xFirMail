@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: EUPL-1.2
 using System.IO.Compression;
 using System.Text;
+using System.Reflection;
 using Xfir.Core;
 using Xfir.Rendering;
 using PdfSharp.Pdf.IO;
+using PdfSharp.Pdf.Content;
+using PdfSharp.Pdf.Content.Objects;
 using Xunit;
 
 namespace Xfir.Tests;
@@ -96,6 +99,24 @@ public class ReaderTests
     }
 
     [Fact]
+    public void PdfVersionFollowsBuildMetadata()
+    {
+        var expected = typeof(FormPdfRenderer).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];
+        Assert.Equal(expected, ProductInfo.Version);
+
+        using var pdf = PdfReader.Open(new MemoryStream(new FormPdfRenderer().Render(new XfirReader().Read(Sample()))), PdfDocumentOpenMode.Import);
+        Assert.Equal($"xFirW {expected}", pdf.Info.Creator);
+        foreach (var page in pdf.Pages)
+        {
+            var text = ContentReader.ReadContent(page).OfType<COperator>()
+                .Where(op => op.OpCode.Name == "Tj")
+                .SelectMany(op => op.Operands.OfType<CString>()).Select(value => value.Value);
+            Assert.Contains(text, value => value.Contains($"xFirW {expected}"));
+        }
+    }
+
+    [Fact]
     public void LongNotesCreateSupplementaryPages()
     {
         var text = string.Join(' ', Enumerable.Repeat("Annotazione molto lunga con dati da conservare.", 150));
@@ -144,15 +165,15 @@ public class ReaderTests
     private const string Transport = """
         <Trasporto idRef="1" xmlns="urn:it:rentri:formulari:1.0"><TrasportoTerrestre><TargaAutomezzo>XX000XX</TargaAutomezzo><DataOraInizioTrasporto>2026-09-18T12:58:55Z</DataOraInizioTrasporto></TrasportoTerrestre></Trasporto>
         """;
-    internal static byte[] Sample(string? departure = null, string? transport = null, string? extraName = null, string extra = "<extra />", bool includeQr = true, bool omitExtra = false)
+    internal static byte[] Sample(string? departure = null, string? transport = null, string? extraName = null, string extra = "<extra />", bool includeQr = true, bool omitExtra = false, bool includeTransport = true)
     {
         var files = new List<(string Name, byte[] Content)>
         {
             ("mimetype", Encoding.ASCII.GetBytes("application/vnd.etsi.asic-e+zip")),
             ("TESTX 000001 AA.xml", Encoding.UTF8.GetBytes("<eFIR xmlns='urn:it:rentri:vidimazione-fir:1.0'><NumeroFir>TESTX 000001 AA</NumeroFir></eFIR>")),
-            ("partenza.xml", Encoding.UTF8.GetBytes(departure ?? Departure)),
-            ("trasporto001.xml", Encoding.UTF8.GetBytes(transport ?? Transport))
+            ("partenza.xml", Encoding.UTF8.GetBytes(departure ?? Departure))
         };
+        if (includeTransport) files.Add(("trasporto001.xml", Encoding.UTF8.GetBytes(transport ?? Transport)));
         if (includeQr) files.Add(("TESTX 000001 AA.cbor", [0xA1, 0x00, 0x01]));
         if (extraName is not null) files.Add((extraName, Encoding.UTF8.GetBytes(extra)));
         var manifest = "<manifest:manifest xmlns:manifest='urn:oasis:names:tc:opendocument:xmlns:manifest:1.0'>"

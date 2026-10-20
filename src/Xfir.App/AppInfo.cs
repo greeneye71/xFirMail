@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: EUPL-1.2
-using System.Reflection;
+using Xfir.Core;
 
 namespace Xfir.App;
 
@@ -25,7 +25,5 @@ internal static class AppInfo
         "L'utente è tenuto a verificare i dati sul documento XFIR originale e sui sistemi ufficiali RENTRI. " +
         "La copia PDF prodotta non sostituisce il formulario digitale originale.";
 
-    public static string Version => typeof(AppInfo).Assembly
-        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]
-        ?? typeof(AppInfo).Assembly.GetName().Version?.ToString(3) ?? "—";
+    public static string Version => ProductInfo.Version;
 }

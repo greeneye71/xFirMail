@@ -7,6 +7,7 @@
     <ApplicationIcon>Assets/xFirW.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../Shared/ConversionCommand.cs" Link="ConversionCommand.cs" />
     <ProjectReference Include="../Xfir.Rendering/Xfir.Rendering.csproj" />
     <Resource Include="Assets/xFirW.ico" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3537.50" />
