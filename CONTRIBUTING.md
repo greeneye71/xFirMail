@@ -1,6 +1,6 @@
-# Contribuire a xFirW
+# Contribuire a xFirMail
 
-Il progetto è in fase iniziale. Prima di una modifica estesa, apri una issue per descrivere il problema o la funzione proposta; per correzioni circoscritte puoi proporre direttamente una pull request.
+xFirMail è la nuova linea Linux e IMAP/SMTP derivata da xFirW. La base è ancora Windows: il lavoro previsto è descritto in [docs/PIANO-XFIRMAIL.md](docs/PIANO-XFIRMAIL.md). Prima di una modifica estesa, apri una issue per descrivere il problema o la funzione proposta; per correzioni circoscritte puoi proporre direttamente una pull request.
 
 I contributi originali al codice e alla documentazione del progetto devono essere forniti sotto la stessa licenza **EUPL-1.2** indicata in [LICENSE](LICENSE) ([versione italiana](LICENSE-IT.txt)). Mantieni le attribuzioni e includi soltanto materiale che hai diritto di contribuire. Non è richiesto il trasferimento del copyright al mantenitore.
 
