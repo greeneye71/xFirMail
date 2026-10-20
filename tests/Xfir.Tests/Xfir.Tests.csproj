@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><IsPackable>false</IsPackable><IsTestProject>true</IsTestProject><UseWPF>true</UseWPF></PropertyGroup>
+  <PropertyGroup><TargetFramework>net10.0-windows</TargetFramework><RuntimeIdentifiers>win-x64</RuntimeIdentifiers><IsPackable>false</IsPackable><IsTestProject>true</IsTestProject><UseWPF>true</UseWPF></PropertyGroup>
   <ItemGroup>
     <Compile Include="../../src/Shared/ConversionCommand.cs" Link="ConversionCommand.cs" />
     <Compile Include="../../src/Shared/AppArguments.cs" Link="AppArguments.cs" />

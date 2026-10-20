@@ -33,14 +33,14 @@ public sealed class FormPdfRenderer
         try
         {
             options ??= new();
-            lock (FontLock) GlobalFontSettings.FontResolver ??= new WindowsFontResolver();
+            lock (FontLock) GlobalFontSettings.FontResolver ??= new PortableFontResolver();
             form = document;
             overflow.Clear();
             using var result = new PdfDocument();
             pdf = result;
             pdf.Info.Title = "Formulario " + form.Number;
-            pdf.Info.Author = "xFirW";
-            pdf.Info.Creator = $"xFirW {ProductInfo.Version}";
+            pdf.Info.Author = "xFirMail (derivato da xFirW)";
+            pdf.Info.Creator = $"xFirMail {ProductInfo.Version}";
             pdf.Info.Subject = "Copia di consultazione del FIR digitale - verifica firme non eseguita";
             AddPage("FORMULARIO RIFIUTI");
             MainPage();
@@ -64,7 +64,7 @@ public sealed class FormPdfRenderer
             {
                 this.budget.Check();
                 using var footer = XGraphics.FromPdfPage(pdf.Pages[i], XGraphicsPdfPageOptions.Append);
-                footer.DrawString($"{form.Number} · xFirW {ProductInfo.Version} · {generatedAt}", Font(7), Ink, new XPoint(Left, 807));
+                footer.DrawString($"{form.Number} · xFirMail {ProductInfo.Version} · {generatedAt}", Font(7), Ink, new XPoint(Left, 807));
                 footer.DrawString($"Pagina {i + 1} di {pdf.PageCount}", Font(7), Ink, new XRect(450, 799, 117, 12), XStringFormats.CenterRight);
                 footer.DrawString("Copia di consultazione · Firme e validità della vidimazione non verificate", Font(6.5), Label, new XPoint(Left, 821));
             }
@@ -223,7 +223,7 @@ public sealed class FormPdfRenderer
         Cell("Dati firma destinatario", "", 300, 607, 261, 35);
         Section("17", "ANNOTAZIONI (SEGUE)", 652, 112);
         if (form.AdditionalParts.Count > 0)
-            Text("Gli eventi integrativi presenti nell'XFIR sono riportati nell'appendice dati delle pagine successive. I riquadri di questo foglio non sono compilati da xFirW.", 34, 673, 427, 55, 9, true);
+            Text("Gli eventi integrativi presenti nell'XFIR sono riportati nell'appendice dati delle pagine successive. I riquadri di questo foglio non sono compilati da xFirMail.", 34, 673, 427, 55, 9, true);
         Endorsement(767, qrTop: 688);
     }
 

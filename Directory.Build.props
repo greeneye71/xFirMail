@@ -1,13 +1,13 @@
 <Project>
   <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <Version>1.0.2</Version>
     <Authors>Giovanni Bergamaschi; xFirW contributors</Authors>
     <Copyright>Copyright (C) 2026 Giovanni Bergamaschi e i contributori di xFirW</Copyright>
     <PackageLicenseExpression>EUPL-1.2</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/greeneye71/xFirW</RepositoryUrl>
+    <RepositoryUrl>https://github.com/greeneye71/xFirMail</RepositoryUrl>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <NuGetAudit>true</NuGetAudit>
     <NuGetAuditMode>all</NuGetAuditMode>
@@ -18,7 +18,6 @@
     <!-- Apply the security floor both to installed runtimes and self-contained packages. -->
     <MinimumSecureRuntimeVersion>10.0.13</MinimumSecureRuntimeVersion>
     <RuntimeFrameworkVersion Condition="'$(RuntimeFrameworkVersion)' == ''">$(MinimumSecureRuntimeVersion)</RuntimeFrameworkVersion>
-    <!-- Lock files also cover the self-contained win-x64 Store package. -->
-    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <RuntimeIdentifiers>linux-x64</RuntimeIdentifiers>
   </PropertyGroup>
 </Project>

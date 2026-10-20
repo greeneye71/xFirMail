@@ -23,6 +23,11 @@ samples/private/
 
 # Credentials and signing material
 .env
+appsettings.json
+appsettings.*.json
+!appsettings.example.json
+/data/
+/work/
 .env.*
 !.env.example
 *.pfx

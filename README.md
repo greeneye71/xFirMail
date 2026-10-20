@@ -2,7 +2,22 @@
 
 Servizio in sviluppo per convertire formulari XFIR in PDF su Linux e restituirli via posta elettronica, distribuito in un container Podman su Fedora.
 
-**Stato attuale:** repository separato e piano di sviluppo predisposti. I sorgenti ereditati sono ancora quelli della versione Windows; il porting Linux, il servizio IMAP/SMTP e il container non sono ancora implementati. Questa copia non costituisce una release Linux utilizzabile.
+**Stato attuale:** implementati motore/CLI multipiattaforma, container Fedora rootless, worker IMAP/SMTP e registro persistente. Test disponibili su Windows; collaudo Linux/Fedora/Podman ancora da eseguire. Non è una release di produzione. Risultati e lavoro residuo in [STATO-SVILUPPO](docs/STATO-SVILUPPO.md).
+
+## Uso e sviluppo
+
+Un solo `appsettings.json` esterno, montato in sola lettura: copiare [l'esempio fittizio](appsettings.example.json), modificarlo con un editor, limitarne i permessi al proprietario e riavviare dopo le modifiche. Avvio Podman e regole della casella in [ESERCIZIO](docs/ESERCIZIO.md); controlli ancora necessari in [VERIFICA-FEDORA](docs/VERIFICA-FEDORA.md).
+
+Con l'SDK di `global.json`:
+
+```sh
+dotnet restore xFirMail.slnx --locked-mode -p:SecurityAuditRequired=true
+dotnet test tests/Xfir.Portable.Tests -c Release --no-restore
+dotnet run --project src/Xfir.Cli -- esempio-sintetico.xfir output.pdf
+dotnet run --project src/Xfir.Mail -- /percorso/appsettings.json
+```
+
+La suite usa documenti sintetici e server di posta locali su loopback. La soluzione `xFirMail.slnx` non richiede WPF; la soluzione storica Windows resta separata. Le dipendenze di produzione sono bloccate nei lock file e verificate dall'audit NuGet.
 
 ## Origine e separazione dei progetti
 
@@ -20,13 +35,13 @@ Il repository è una derivazione indipendente nello stesso account GitHub, non u
 3. Aggiungere il servizio di posta con casella IMAP dedicata, conversione in un processo separato e risposta SMTP al mittente autorizzato.
 4. Verificare persistenza delle richieste, riavvii, tentativi di invio, limiti delle risorse e cancellazione dei documenti temporanei.
 
-Criteri di accettazione e decisioni ancora da prendere sono nel [piano xFirMail](docs/PIANO-XFIRMAIL.md).
+Criteri di accettazione sono nel [piano xFirMail](docs/PIANO-XFIRMAIL.md); implementazione e verifiche sono registrate separatamente nello stato sviluppo.
 
 ## Codice ereditato
 
 La documentazione della base Windows è conservata in [README-WINDOWS.md](README-WINDOWS.md). Changelog, report di revisione e script Store descrivono quella base storica: non attestano funzionalità Linux o mail già disponibili.
 
-Il workflow Windows ereditato è disponibile soltanto su avvio manuale e serve come controllo della base durante la migrazione. La CI Linux e la pubblicazione dell'immagine container saranno aggiunte con il porting; non vengono pubblicati pacchetti Windows automaticamente da questo repository.
+Il workflow Windows ereditato resta manuale. Il workflow Linux compila ed esegue i test portabili e costruisce il container su avvio manuale; nessun workflow pubblica immagini o pacchetti automaticamente. La sua presenza non attesta un'esecuzione riuscita.
 
 ## Licenza e contributi
 

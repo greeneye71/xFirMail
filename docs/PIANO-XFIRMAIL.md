@@ -1,6 +1,6 @@
 # Piano di sviluppo xFirMail
 
-Decisione del 20 ottobre 2026: sviluppare la nuova piattaforma in un repository autonomo, derivato da xFirW. La linea Windows originale riceverà soltanto bugfix e correzioni di sicurezza. Questo documento descrive lavoro previsto, non funzioni già implementate.
+Decisione del 20 ottobre 2026: sviluppare la nuova piattaforma in un repository autonomo, derivato da xFirW. La linea Windows originale riceverà soltanto bugfix e correzioni di sicurezza. Questo documento conserva il piano e i criteri di accettazione; stato dell'implementazione e risultati effettivi in [STATO-SVILUPPO.md](STATO-SVILUPPO.md). Configurazione concordata: unico appsettings.json esterno, montato in sola lettura, modifiche applicate al riavvio, credenziali ammesse nel file protetto e mai nei log.
 
 ## Base di partenza
 

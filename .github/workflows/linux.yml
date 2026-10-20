@@ -1,0 +1,26 @@
+name: xFirMail Linux (manual, no publication)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  portable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet restore xFirMail.slnx --locked-mode -p:SecurityAuditRequired=true
+      - run: dotnet test tests/Xfir.Portable.Tests -c Release --no-restore --logger trx --results-directory artifacts/test-results
+      - name: Build Fedora image locally
+        run: podman build -t localhost/xfirmail:ci -f Containerfile .
+      - name: Rootless converter smoke test
+        run: |
+          mkdir -p output
+          podman run --rm --network=none --read-only --cap-drop=all --security-opt=no-new-privileges \
+            --memory=512m --cpus=1 --pids-limit=64 --userns=keep-id:uid=10001,gid=10001 --user 10001:10001 \
+            --tmpfs /tmp:rw,nosuid,nodev,size=32m \
+            -v "$PWD/esempio-sintetico.xfir:/input/esempio.xfir:ro,Z" -v "$PWD/output:/output:rw,Z" \
+            --entrypoint /app/cli/Xfir.Cli localhost/xfirmail:ci /input/esempio.xfir /output/esempio.pdf
+          test -s output/esempio.pdf

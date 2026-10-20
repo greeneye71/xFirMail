@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="src/Xfir.Core/Xfir.Core.csproj" />
+  <Project Path="src/Xfir.Rendering/Xfir.Rendering.csproj" />
+  <Project Path="src/Xfir.Cli/Xfir.Cli.csproj" />
+  <Project Path="src/Xfir.Mail/Xfir.Mail.csproj" />
+  <Project Path="tests/Xfir.Portable.Tests/Xfir.Portable.Tests.csproj" />
+</Solution>

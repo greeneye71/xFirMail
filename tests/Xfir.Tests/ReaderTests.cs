@@ -106,13 +106,13 @@ public class ReaderTests
         Assert.Equal(expected, ProductInfo.Version);
 
         using var pdf = PdfReader.Open(new MemoryStream(new FormPdfRenderer().Render(new XfirReader().Read(Sample()))), PdfDocumentOpenMode.Import);
-        Assert.Equal($"xFirW {expected}", pdf.Info.Creator);
+        Assert.Equal($"xFirMail {expected}", pdf.Info.Creator);
         foreach (var page in pdf.Pages)
         {
             var text = ContentReader.ReadContent(page).OfType<COperator>()
                 .Where(op => op.OpCode.Name == "Tj")
                 .SelectMany(op => op.Operands.OfType<CString>()).Select(value => value.Value);
-            Assert.Contains(text, value => value.Contains($"xFirW {expected}"));
+            Assert.Contains(text, value => value.Contains($"xFirMail {expected}"));
         }
     }
 
