@@ -38,12 +38,11 @@ public static class MessagePolicy
 
     public static List<MimePart> Attachments(MimeMessage message)
     {
-        var parts = message.BodyParts.Where(p => p.IsAttachment || !string.IsNullOrEmpty(p.ContentDisposition?.FileName) ||
-            !string.IsNullOrEmpty(p.ContentType.Name)).ToList();
-        if (parts.Count is < 1 or > Settings.MaxAttachments || parts.Any(p => p is not MimePart ||
-            !(((MimePart)p).FileName?.EndsWith(".xfir", StringComparison.OrdinalIgnoreCase) ?? false)))
-            throw new InputRejectedException();
-        return parts.Cast<MimePart>().ToList();
+        // Other parts (signature logos, images, documents) are ignored, never converted.
+        var parts = message.BodyParts.OfType<MimePart>()
+            .Where(p => p.FileName?.EndsWith(".xfir", StringComparison.OrdinalIgnoreCase) ?? false).ToList();
+        if (parts.Count is < 1 or > Settings.MaxAttachments) throw new InputRejectedException();
+        return parts;
     }
 }
 

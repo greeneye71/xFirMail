@@ -70,6 +70,42 @@ public sealed class MailTests : IDisposable
     public void AttachmentCountIsBounded(int count)
     { using var message = Message(count); Assert.Throws<InputRejectedException>(() => MessagePolicy.Attachments(message)); }
 
+    private static MimeMessage WithImages(int xfir, bool inlineLogo)
+    {
+        var message = Message(xfir);
+        var builder = new BodyBuilder { TextBody = "Collaudo sintetico." };
+        foreach (var part in message.BodyParts.OfType<MimePart>().Where(p => p.FileName is not null).ToList())
+            builder.Attachments.Add(part);
+        builder.Attachments.Add("foto.png", new byte[] { 0x89, 0x50, 0x4E, 0x47 }, new ContentType("image", "png"));
+        if (inlineLogo)
+        {
+            var logo = builder.LinkedResources.Add("logo.jpg", new byte[] { 0xFF, 0xD8, 0xFF }, new ContentType("image", "jpeg"));
+            logo.ContentId = "logo@example.invalid";
+            builder.HtmlBody = "<p>Collaudo</p><img src=\"cid:logo@example.invalid\">";
+        }
+        message.Body = builder.ToMessageBody();
+        return message;
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void IgnoresNonXfirAttachments(bool inlineLogo)
+    {
+        using var message = WithImages(1, inlineLogo);
+        Assert.Equal("../../test-0.xfir", Assert.Single(MessagePolicy.Attachments(message)).FileName);
+    }
+
+    [Fact]
+    public void RejectsMessageWithOnlyNonXfirAttachments()
+    { using var message = WithImages(0, true); Assert.Throws<InputRejectedException>(() => MessagePolicy.Attachments(message)); }
+
+    [Fact]
+    public void ImagesDoNotCountTowardsAttachmentLimit()
+    {
+        using var message = WithImages(Settings.MaxAttachments, true);
+        Assert.Equal(Settings.MaxAttachments, MessagePolicy.Attachments(message).Count);
+    }
 
     [Fact]
     public async Task SendsOnlyToAuthorizedFromAndDoesNotRepeatUidOrDuplicateMime()
