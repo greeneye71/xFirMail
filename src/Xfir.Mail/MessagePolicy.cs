@@ -10,9 +10,7 @@ public static class MessagePolicy
     {
         // Duplicate identity headers and ambiguous From lists fail closed.
         if (message.Headers.Count(x => x.Id == HeaderId.From) != 1 || message.From.Count != 1 ||
-            message.From[0] is not MailboxAddress from || !Settings.IsAddress(from.Address) ||
-            !settings.AllowedSenders.Contains(from.Address, StringComparer.OrdinalIgnoreCase) ||
-            from.Address.Equals(settings.Smtp.Account, StringComparison.OrdinalIgnoreCase) ||
+            message.From[0] is not MailboxAddress from || !settings.IsSenderAllowed(from.Address) ||
             message.Headers.Contains("X-XfirMail") || message.Headers.Contains(HeaderId.ListId) ||
             message.Headers.Contains(HeaderId.ListUnsubscribe) || message.Headers.Contains("X-Auto-Response-Suppress") ||
             message.Headers.Contains(HeaderId.Precedence) || message.Headers.Contains(HeaderId.ReturnReceiptTo) ||
@@ -21,6 +19,8 @@ public static class MessagePolicy
             message.BodyParts.Any(p => p.ContentType.IsMimeType("message", "delivery-status") || p.ContentType.IsMimeType("multipart", "report")) ||
             message.Headers.Any(h => h.Id == HeaderId.ReturnPath && h.Value.Replace(" ", "").Trim() == "<>"))
             return null;
+
+        if (!settings.RequireDmarc) return from.Address;
 
         var trusted = settings.TrustedAuthservId.Length == 0 ? settings.Imap.Server : settings.TrustedAuthservId;
         var domain = from.Address[(from.Address.LastIndexOf('@') + 1)..];

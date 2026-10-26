@@ -18,6 +18,7 @@ public interface IInbox : IAsyncDisposable
     string Scope { get; }
     Task<MailBatch> NextAsync(uint after, CancellationToken token);
     Task<byte[]> ReadAsync(uint uid, CancellationToken token);
+    Task MarkReadAsync(uint uid, CancellationToken token);
 }
 public interface IReplySender
 {
@@ -43,7 +44,7 @@ public sealed class ImapInbox : IInbox
             var endpoint = settings.Imap;
             await client.ConnectAsync(endpoint.Server, endpoint.Port, endpoint.Port == 993 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls, token);
             await client.AuthenticateAsync(endpoint.Account, endpoint.Password, token);
-            await client.Inbox.OpenAsync(FolderAccess.ReadOnly, token);
+            await client.Inbox.OpenAsync(FolderAccess.ReadWrite, token);
             return new(client, settings);
         }
         catch { client.Dispose(); throw; }
@@ -68,6 +69,8 @@ public sealed class ImapInbox : IInbox
         await source.CopyToAsync(bytes, token);
         return bytes.ToArray();
     }
+    public Task MarkReadAsync(uint uid, CancellationToken token) =>
+        client.Inbox.AddFlagsAsync(new UniqueId(uid), MessageFlags.Seen, silent: true, token);
     public ValueTask DisposeAsync() { client.Dispose(); return ValueTask.CompletedTask; }
     private sealed class SizeProgress : ITransferProgress
     {

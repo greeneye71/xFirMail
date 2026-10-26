@@ -14,6 +14,7 @@ public sealed record RequestRecord(string Id, string Scope, uint Uid, DateTimeOf
     public string? ContentHash { get; set; }
     public int ConvertAttempts { get; set; }
     public int SendAttempts { get; set; }
+    public bool ReadFlagApplied { get; set; }
     public DateTimeOffset NextAttempt { get; set; }
     public string Reason { get; set; } = "";
 }

@@ -11,12 +11,13 @@ public sealed class MailTests : IDisposable
 {
     private readonly string root = Path.Combine(Path.GetTempPath(), "xfirmail-tests-" + Guid.NewGuid().ToString("N"));
     public MailTests() => Directory.CreateDirectory(root);
-    internal static Settings Config(string root, int imap = 993, int smtp = 465, int quota = 100, string? converter = null) => new()
+    internal static Settings Config(string root, int imap = 993, int smtp = 465, int quota = 100, string? converter = null,
+        string[]? allowedSenders = null, bool requireDmarc = true) => new()
     {
         Imap = new() { Server = "localhost", Port = imap, Account = "service@example.invalid", Password = "test-only-password" },
         Smtp = new() { Server = "localhost", Port = smtp, Account = "service@example.invalid", Password = "test-only-password" },
-        AllowedSenders = ["sender@example.invalid"], StatePath = Path.Combine(root, "state"), WorkPath = Path.Combine(root, "work"),
-        ConverterPath = converter ?? typeof(MailTests).Assembly.Location, DailyQuota = quota
+        AllowedSenders = allowedSenders ?? ["sender@example.invalid"], StatePath = Path.Combine(root, "state"), WorkPath = Path.Combine(root, "work"),
+        ConverterPath = converter ?? typeof(MailTests).Assembly.Location, DailyQuota = quota, RequireDmarc = requireDmarc
     };
     internal static MimeMessage Message(int attachments = 1)
     {
@@ -34,10 +35,12 @@ public sealed class MailTests : IDisposable
     }
     internal static byte[] Bytes(MimeMessage message) { using var stream = new MemoryStream(); message.WriteTo(stream); return stream.ToArray(); }
 
-    [Fact]
-    public void RequiresTrustedAlignedAuthenticationAndRejectsForgedDuplicates()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RequiresTrustedAlignedAuthenticationAndRejectsForgedDuplicates(bool allowAllSenders)
     {
-        var settings = Config(root);
+        var settings = Config(root, allowedSenders: allowAllSenders ? ["*"] : null);
         using var message = Message();
         Assert.Equal("sender@example.invalid", MessagePolicy.AuthorizedSender(message, settings));
         message.Headers[HeaderId.AuthenticationResults] = "untrusted.invalid; dmarc=pass header.from=example.invalid";
@@ -67,6 +70,7 @@ public sealed class MailTests : IDisposable
     public void AttachmentCountIsBounded(int count)
     { using var message = Message(count); Assert.Throws<InputRejectedException>(() => MessagePolicy.Attachments(message)); }
 
+
     [Fact]
     public async Task SendsOnlyToAuthorizedFromAndDoesNotRepeatUidOrDuplicateMime()
     {
@@ -84,13 +88,34 @@ public sealed class MailTests : IDisposable
         using var reply = MimeMessage.Load(new MemoryStream(sender.Last!));
         Assert.Equal("sender@example.invalid", Assert.Single(reply.To.Mailboxes).Address);
         Assert.Empty(reply.Cc); Assert.Empty(reply.Bcc); Assert.Empty(reply.ReplyTo);
-        Assert.Equal(new[] { "formulario-1.pdf", "formulario-2.pdf", "avvertenze.txt" }, reply.Attachments.Cast<MimePart>().Select(p => p.FileName));
+        Assert.Equal(new[] { "test-0.pdf", "test-1.pdf", "avvertenze.txt" }, reply.Attachments.Cast<MimePart>().Select(p => p.FileName));
         Assert.DoesNotContain(logs, s => s.Contains("password") || s.Contains("sender@") || s.Contains("Dati sintetici"));
         inbox.Add(Bytes(message));
         await worker.PollAsync(inbox, default);
         Assert.Equal(1, sender.Calls);
         Assert.Contains(store.All(), r => r.Reason == "duplicate");
         Assert.Empty(Directory.GetFiles(Path.Combine(settings.StatePath, "outbox")));
+    }
+
+    [Theory]
+    [InlineData("Formulario 2026.xfir", "Formulario 2026.pdf")]
+    [InlineData("FIR.12.34.XFIR", "FIR.12.34.pdf")]
+    [InlineData("Rifiuti città.xfir", "Rifiuti città.pdf")]
+    [InlineData("../../modulo.xfir", "modulo.pdf")]
+    [InlineData("C:\\cartella\\modulo.xfir", "modulo.pdf")]
+    [InlineData(".xfir", "formulario-1.pdf")]
+    public async Task ReplyPreservesOriginalAttachmentBasenameWithPdfExtension(string original, string expected)
+    {
+        var settings = Config(root); using var message = Message();
+        Assert.Single(message.Attachments.Cast<MimePart>()).FileName = original;
+        await using var inbox = new FakeInbox(Bytes(message));
+        using var store = new RequestStore(settings.StatePath);
+        var sender = new FakeSender();
+        await new MailWorker(settings, store, new FakeConverter(), sender, _ => { }).PollAsync(inbox, default);
+        Assert.Equal(RequestStage.Sent, Assert.Single(store.All()).Stage);
+        using var reply = MimeMessage.Load(new MemoryStream(sender.Last!));
+        Assert.Equal(expected, Assert.Single(reply.Attachments.Cast<MimePart>(),
+            part => part.ContentType.IsMimeType("application", "pdf")).FileName);
     }
 
     [Fact]
@@ -135,10 +160,13 @@ public sealed class MailTests : IDisposable
         Assert.Equal(23u, restored.Cursor(scope)); Assert.Equal(after, restored.Find(id)!.Stage);
     }
 
-    [Fact]
-    public async Task RestartSendsPreparedOutboxWithoutReconversion()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RestartSendsPreparedOutboxWithoutReconversion(bool allowAllSenders)
     {
-        var settings = Config(root); using var message = Message(); await using var inbox = new FakeInbox(Bytes(message));
+        var settings = Config(root, allowedSenders: allowAllSenders ? ["*"] : null);
+        using var message = Message(); await using var inbox = new FakeInbox(Bytes(message));
         var sender = new FakeSender { Result = SendResult.Retry }; var converter = new FakeConverter();
         using (var store = new RequestStore(settings.StatePath))
         {
@@ -272,10 +300,18 @@ public sealed class MailTests : IDisposable
         public string Scope => RequestStore.Hash("synthetic-inbox");
         private readonly List<(byte[] Bytes, uint Size)> messages = [(first, (uint)first.Length)];
         public int Reads;
+        public List<uint> MarkedRead { get; } = [];
+        public bool FailMarkRead { get; set; }
         public void Add(byte[] bytes, int? size = null) => messages.Add((bytes, (uint)(size ?? bytes.Length)));
         public Task<MailBatch> NextAsync(uint after, CancellationToken token) => Task.FromResult(new MailBatch(
             messages.Select((m, i) => new MailItem((uint)i + 1, m.Size)).Where(m => m.Uid > after).ToList(), (uint)messages.Count));
         public Task<byte[]> ReadAsync(uint uid, CancellationToken token) { Reads++; return Task.FromResult(messages[(int)uid - 1].Bytes); }
+        public Task MarkReadAsync(uint uid, CancellationToken token)
+        {
+            if (FailMarkRead) throw new IOException("Synthetic flag failure");
+            MarkedRead.Add(uid);
+            return Task.CompletedTask;
+        }
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

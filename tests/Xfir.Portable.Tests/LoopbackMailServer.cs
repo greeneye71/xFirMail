@@ -25,6 +25,7 @@ internal sealed class LoopbackMailServer : IAsyncDisposable
     public bool OfferTls { get; init; } = true;
     public string? EnvelopeRecipient { get; private set; }
     public string? ServerError { get; private set; }
+    public List<string> FlagCommands { get; } = [];
     private readonly bool imap;
     public LoopbackMailServer(bool imap)
     {
@@ -84,7 +85,12 @@ internal sealed class LoopbackMailServer : IAsyncDisposable
                     else if (command.StartsWith("LIST"))
                         await writer.WriteLineAsync("* LIST () \"/\" \"INBOX\"\r\n" + tag + " OK list");
                     else if (command.StartsWith("EXAMINE") || command.StartsWith("SELECT"))
-                        await writer.WriteLineAsync("* FLAGS (\\Seen)\r\n* 1 EXISTS\r\n* 0 RECENT\r\n* OK [UIDVALIDITY 123] valid\r\n* OK [UIDNEXT 2] next\r\n" + tag + " OK [READ-ONLY] opened");
+                        await writer.WriteLineAsync("* FLAGS (\\Seen)\r\n* OK [PERMANENTFLAGS (\\Seen)] flags\r\n* 1 EXISTS\r\n* 0 RECENT\r\n* OK [UIDVALIDITY 123] valid\r\n* OK [UIDNEXT 2] next\r\n" + tag + (command.StartsWith("SELECT") ? " OK [READ-WRITE] opened" : " OK [READ-ONLY] opened"));
+                    else if (command.StartsWith("UID STORE"))
+                    {
+                        FlagCommands.Add(command);
+                        await writer.WriteLineAsync(tag + " OK flags stored");
+                    }
                     else if (command.StartsWith("UID SEARCH"))
                         await writer.WriteLineAsync("* SEARCH 1\r\n" + tag + " OK search");
                     else if (command.StartsWith("UID FETCH") && command.Contains("BODY"))

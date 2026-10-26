@@ -24,6 +24,7 @@ public sealed class Settings
     public string ConverterPath { get; init; } = "/app/cli/Xfir.Cli";
     // Advanced: defaults work for a dedicated INBOX and a receiving server with the same name as IMAP.
     public string TrustedAuthservId { get; init; } = "";
+    public bool RequireDmarc { get; init; } = true;
     public int DailyQuota { get; init; } = 100;
     public int RetentionDays { get; init; } = 30;
     public const int MaxMessageBytes = 24 * 1024 * 1024;
@@ -57,8 +58,8 @@ public sealed class Settings
     {
         CheckEndpoint(Imap, "Imap"); CheckEndpoint(Smtp, "Smtp");
         if (!IsAddress(Smtp.Account)) throw new ConfigurationException("Smtp.Account deve essere l'indirizzo della casella del servizio.");
-        if (AllowedSenders is null || AllowedSenders.Length is < 1 or > 100 || AllowedSenders.Any(x => !IsAddress(x)))
-            throw new ConfigurationException("AllowedSenders richiede almeno un indirizzo completo, senza nomi o caratteri jolly.");
+        if (AllowedSenders is null || AllowedSenders.Length is < 1 or > 100 || AllowedSenders.Any(x => x != "*" && !IsAddress(x)))
+            throw new ConfigurationException("AllowedSenders richiede indirizzi completi oppure * per accettare tutti i mittenti.");
         if (AllowedSenders.Contains(Smtp.Account, StringComparer.OrdinalIgnoreCase))
             throw new ConfigurationException("La casella del servizio non può essere un mittente autorizzato.");
         if (PollSeconds is < 5 or > 3600 || DailyQuota is < 1 or > 10000 || RetentionDays is < 1 or > 365)
@@ -86,6 +87,10 @@ public sealed class Settings
             value.Account.Any(char.IsControl))
             throw new ConfigurationException($"{name}: specificare server, porta, account e password validi.");
     }
+
+    public bool IsSenderAllowed(string? sender) => IsAddress(sender) &&
+        !string.Equals(sender, Smtp.Account, StringComparison.OrdinalIgnoreCase) &&
+        (AllowedSenders.Contains("*") || AllowedSenders.Contains(sender!, StringComparer.OrdinalIgnoreCase));
 
     public static bool IsAddress(string? value) => !string.IsNullOrWhiteSpace(value) && !value.Any(char.IsControl) &&
         MailboxAddress.TryParse(value, out var address) && string.Equals(address.Address, value, StringComparison.Ordinal) && value.Contains('@');

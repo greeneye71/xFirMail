@@ -20,6 +20,7 @@ jobs:
           mkdir -p output
           podman run --rm --network=none --read-only --cap-drop=all --security-opt=no-new-privileges \
             --memory=512m --cpus=1 --pids-limit=64 --userns=keep-id:uid=10001,gid=10001 --user 10001:10001 \
+            --mount type=tmpfs,destination=/work,tmpfs-size=128m,tmpfs-mode=0700,U=true,noexec,nosuid,nodev \
             --tmpfs /tmp:rw,nosuid,nodev,size=32m \
             -v "$PWD/esempio-sintetico.xfir:/input/esempio.xfir:ro,Z" -v "$PWD/output:/output:rw,Z" \
             --entrypoint /app/cli/Xfir.Cli localhost/xfirmail:ci /input/esempio.xfir /output/esempio.pdf

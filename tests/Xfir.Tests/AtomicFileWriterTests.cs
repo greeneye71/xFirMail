@@ -63,12 +63,25 @@ public sealed class AtomicFileWriterTests : IDisposable
     }
 
     [Fact]
-    public void ReplacementFailureKeepsTheExistingFile()
+    public void ReplacementWithOpenReaderUsesPlatformFileSharingRules()
     {
         File.WriteAllText(Destination, "original");
         using (var locked = new FileStream(Destination, FileMode.Open, FileAccess.Read, FileShare.Read))
-            Assert.Throws<IOException>(() => AtomicFileWriter.Write(Destination, new byte[] { 1 }, overwrite: true));
-        Assert.Equal("original", File.ReadAllText(Destination));
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.Throws<IOException>(() => AtomicFileWriter.Write(Destination, new byte[] { 1 }, overwrite: true));
+                Assert.Equal("original", File.ReadAllText(Destination));
+            }
+            else
+            {
+                // Unix permits replacing an open file; existing readers retain the old inode.
+                AtomicFileWriter.Write(Destination, new byte[] { 1 }, overwrite: true);
+                Assert.Equal(new byte[] { 1 }, File.ReadAllBytes(Destination));
+                using var reader = new StreamReader(locked, leaveOpen: true);
+                Assert.Equal("original", reader.ReadToEnd());
+            }
+        }
         Assert.Empty(Directory.EnumerateFiles(folder, "*.tmp"));
     }
 

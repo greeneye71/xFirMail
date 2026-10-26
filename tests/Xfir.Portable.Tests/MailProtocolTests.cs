@@ -16,13 +16,18 @@ public sealed class MailProtocolTests : IDisposable
     private static SmtpClient Smtp(LoopbackMailServer server) => new()
     { ServerCertificateValidationCallback = (_, certificate, _, _) => certificate?.GetCertHashString() == server.Certificate.GetCertHashString() };
 
-    [Fact]
-    public async Task ReceivesOverImapStartTlsAndRepliesOverSmtpStartTls()
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    public async Task ReceivesOverImapStartTlsAndRepliesOverSmtpStartTls(bool allowAllSenders, bool requireDmarc)
     {
         using var input = MailTests.Message();
+        if (!requireDmarc) input.Headers.RemoveAll(HeaderId.AuthenticationResults);
         await using var imap = new LoopbackMailServer(true) { Input = MailTests.Bytes(input) };
         await using var smtp = new LoopbackMailServer(false);
-        var settings = MailTests.Config(root, imap.Port, smtp.Port, converter: ConverterProcessTests.CliPath);
+        var settings = MailTests.Config(root, imap.Port, smtp.Port, converter: ConverterProcessTests.CliPath,
+            allowedSenders: allowAllSenders ? ["*"] : null, requireDmarc: requireDmarc);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         IInbox connected;
         try { connected = await ImapInbox.ConnectAsync(settings, timeout.Token, Imap(imap)); }
@@ -32,10 +37,14 @@ public sealed class MailProtocolTests : IDisposable
         var worker = new MailWorker(settings, store, new ProcessConverter(settings), new SmtpReplySender(settings, () => Smtp(smtp)), _ => { });
         await worker.PollAsync(inbox, timeout.Token);
         Assert.Equal(RequestStage.Sent, Assert.Single(store.All()).Stage);
+        Assert.True(Assert.Single(store.All()).ReadFlagApplied);
+        Assert.Equal("UID STORE 1 +FLAGS.SILENT (\\Seen)", Assert.Single(imap.FlagCommands));
         Assert.NotNull(smtp.Delivered);
         Assert.Equal("RCPT TO:<sender@example.invalid>", smtp.EnvelopeRecipient);
         using var reply = MimeMessage.Load(new MemoryStream(smtp.Delivered!));
         Assert.Equal("sender@example.invalid", Assert.Single(reply.To.Mailboxes).Address);
+        Assert.Equal("test-0.pdf", Assert.Single(reply.Attachments.Cast<MimePart>(),
+            part => part.ContentType.IsMimeType("application", "pdf")).FileName);
     }
 
     [Theory]

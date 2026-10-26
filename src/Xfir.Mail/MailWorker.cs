@@ -37,7 +37,24 @@ public sealed class MailWorker(Settings settings, RequestStore store, IConverter
         }
         store.Advance(inbox.Scope, batch.Through);
         await SendReadyAsync(token);
+        await MarkSentReadAsync(inbox, token);
         store.Cleanup(settings.RetentionDays, DateTimeOffset.UtcNow);
+    }
+
+    private async Task MarkSentReadAsync(IInbox inbox, CancellationToken token)
+    {
+        // The durable Sent state prevents resending even if STORE fails or the process stops here.
+        foreach (var record in store.All().Where(r => r.Stage == RequestStage.Sent &&
+            r.Scope == inbox.Scope && !r.ReadFlagApplied).Take(50))
+        {
+            token.ThrowIfCancellationRequested();
+            try { await inbox.MarkReadAsync(record.Uid, token); }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+            catch (Exception)
+            { log($"request={record.Id} flag=Seen-pending"); continue; }
+            record.ReadFlagApplied = true;
+            store.Save(record);
+        }
     }
 
     private async Task PrepareAsync(IInbox inbox, RequestRecord record, CancellationToken token)
@@ -69,8 +86,8 @@ public sealed class MailWorker(Settings settings, RequestStore store, IConverter
                 var converted = await converter.ConvertAsync(attachments[i], token);
                 total += converted.Pdf.Length;
                 if (total > 16 * 1024 * 1024) throw new InputRejectedException();
-                // Never reuse sender-controlled filenames or subjects.
-                builder.Attachments.Add($"formulario-{i + 1}.pdf", converted.Pdf, ContentType.Parse("application/pdf"));
+                // Preserve the attachment's basename only as MIME metadata; local paths stay generated.
+                builder.Attachments.Add(PdfAttachmentName(attachments[i].FileName!, i + 1), converted.Pdf, ContentType.Parse("application/pdf"));
                 if (converted.Warnings.Length > 0) warnings.AppendLine($"Documento {i + 1}:").AppendLine(converted.Warnings);
             }
             if (warnings.Length > 0) builder.Attachments.Add("avvertenze.txt", Encoding.UTF8.GetBytes(warnings.ToString()), ContentType.Parse("text/plain"));
@@ -97,6 +114,16 @@ public sealed class MailWorker(Settings settings, RequestStore store, IConverter
         }
         log($"request={record.Id} stage={record.Stage}");
     }
+    private static string PdfAttachmentName(string sourceName, int index)
+    {
+        var name = sourceName.Replace('\\', '/');
+        name = name[(name.LastIndexOf('/') + 1)..];
+        name = new string(name.Where(c => !char.IsControl(c)).ToArray());
+        var stem = name[..^5]; // MessagePolicy has already required the .xfir extension.
+        if (string.IsNullOrWhiteSpace(stem.Trim('.', ' '))) stem = $"formulario-{index}";
+        return stem + ".pdf";
+    }
+
     private void Reject(RequestRecord record, string reason)
     { record.Stage = RequestStage.Rejected; record.Reason = reason; store.Save(record); log($"request={record.Id} stage=Rejected reason={reason}"); }
 
@@ -110,7 +137,7 @@ public sealed class MailWorker(Settings settings, RequestStore store, IConverter
             catch (Exception e) when (e is IOException or FormatException)
             { record.Stage = RequestStage.Failed; record.Reason = "outbox-unreadable"; store.Save(record); log($"request={record.Id} stage=Failed reason=outbox-unreadable"); continue; }
             using var message = prepared;
-            if (record.Sender is null || !settings.AllowedSenders.Contains(record.Sender, StringComparer.OrdinalIgnoreCase) ||
+            if (!settings.IsSenderAllowed(record.Sender) ||
                 message.To.Count != 1 || message.To[0] is not MailboxAddress to || !to.Address.Equals(record.Sender, StringComparison.OrdinalIgnoreCase) ||
                 message.Cc.Count != 0 || message.Bcc.Count != 0 || message.From.Count != 1 ||
                 message.From[0] is not MailboxAddress from || !from.Address.Equals(settings.Smtp.Account, StringComparison.OrdinalIgnoreCase))
