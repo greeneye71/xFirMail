@@ -93,7 +93,8 @@ public sealed class MailTests : IDisposable
     public void IgnoresNonXfirAttachments(bool inlineLogo)
     {
         using var message = WithImages(1, inlineLogo);
-        Assert.Equal("../../test-0.xfir", Assert.Single(MessagePolicy.Attachments(message)).FileName);
+        // MimeKit strips the fixture path on Linux but keeps it on Windows.
+        Assert.EndsWith("test-0.xfir", Assert.Single(MessagePolicy.Attachments(message)).FileName);
     }
 
     [Fact]
