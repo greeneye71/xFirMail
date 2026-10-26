@@ -105,3 +105,16 @@ Lo stato `Sent` viene salvato prima della marcatura; un errore del flag non camb
 - Servizio **active/running, Result=success, NRestarts=0**. Verificati sul provider, tramite lettura dei soli flag, gli originali UID 2 e 3: entrambi presenti, `ReadFlagApplied=true` e `\Seen` effettivo. Confrontato il registro prima/dopo aggiornamento: entrambe le richieste restano `Sent` con il conteggio dei tentativi SMTP invariato, quindi nessun reinvio delle richieste precedenti.
 
 Log locale `tmp/server-install/mark-read.log`, aggiornamento concluso con codice 0. Nessun contenuto, oggetto, indirizzo o password mostrato dalla verifica dei flag. Modifiche sorgenti ancora locali, senza nuovi commit o push dopo il commit base.
+
+### Solo allegati XFIR (26 ottobre 2026)
+
+Su richiesta dell'utente, gli allegati diversi da `.xfir` (immagini, logo inline della firma, altri documenti) non respingono più la mail: vengono ignorati e si elaborano soltanto gli XFIR. La richiesta viene respinta solo se non contiene alcun `.xfir` o ne contiene più di 3; le parti ignorate non contano nel limite. Restano invariati i limiti di dimensione e il rifiuto dell'intera richiesta per un XFIR invalido.
+
+- **164/164 test superati su Windows e su Linux**, con nuovi casi per immagine allegata, logo inline, mail con sole immagini e limite calcolato sui soli XFIR.
+- Primo tentativo di installazione fermato dai test sul server: MimeKit su Linux rimuove il percorso dal nome dell'allegato di prova, su Windows lo conserva. Asserzione resa indipendente dalla piattaforma; il servizio non era stato toccato. La cartella della release fallita `~/xfirmail/releases/b374cea-xfir-only-20261026` resta sul server da rimuovere.
+- Installata l'immagine `localhost/xfirmail:b374cea-xfir-only-20261026-2`, ID `ab1c601139158f171f48a657d782b9b4eb05f8878de2035be06ea3cf8d2d9867`, sopra `b374cea-mark-read-20261021`. JSON e credenziali conservati; backup dell'unità in `~/xfirmail/backups/xfir-only-<data-ora>/`.
+- Servizio **active/running, Result=success, NRestarts=0**, configurazione valida e montaggi accessibili. Log locale `tmp/server-install/xfir-only.log`, aggiornamento concluso con codice 0.
+
+Da verificare con posta reale: una mail con XFIR e immagine deve ricevere il PDF, una con sole immagini deve essere respinta senza risposta.
+
+Le modifiche descritte nelle sezioni precedenti come "ancora locali" sono state committate (6057e1d, 17064bb, 591c727) e pubblicate su `origin/main` il 26 ottobre 2026, insieme a questo aggiornamento della documentazione.
